@@ -1,6 +1,5 @@
-
-
 import React, { useState } from "react";
+import { cleanNumber, parseNumber } from "../utils";
 
 /**
  * SlippageModal component for adjusting slippage tolerance.
@@ -12,99 +11,6 @@ import React, { useState } from "react";
  * - currentSlippage: number, current slippage value (percent)
  */
 const PRESET_SLIPPAGES = [0.1, 0.5, 1];
-
-const modalOverlayStyle = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100vw",
-  height: "100vh",
-  background: "rgba(0,0,0,0.35)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 1000,
-};
-
-const modalCardStyle = {
-  background: "#fff",
-  borderRadius: "16px",
-  boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
-  padding: "32px 28px 24px 28px",
-  minWidth: "320px",
-  maxWidth: "90vw",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  position: "relative",
-};
-
-const titleStyle = {
-  fontSize: "1.25rem",
-  fontWeight: 600,
-  marginBottom: "20px",
-  color: "#222",
-  textAlign: "center",
-};
-
-const presetContainerStyle = {
-  display: "flex",
-  gap: "12px",
-  marginBottom: "18px",
-};
-
-const presetButtonStyle = (active) => ({
-  background: active ? "#4f46e5" : "#f3f4f6",
-  color: active ? "#fff" : "#222",
-  border: "none",
-  borderRadius: "8px",
-  padding: "8px 18px",
-  fontWeight: 500,
-  fontSize: "1rem",
-  cursor: "pointer",
-  boxShadow: active ? "0 2px 8px rgba(79,70,229,0.09)" : undefined,
-  outline: active ? "2px solid #6366f1" : "none",
-  transition: "background 0.15s, color 0.15s, outline 0.15s",
-});
-
-const inputContainerStyle = {
-  display: "flex",
-  alignItems: "center",
-  marginBottom: "20px",
-};
-
-const inputStyle = {
-  width: "80px",
-  padding: "7px 10px",
-  border: "1px solid #d1d5db",
-  borderRadius: "8px",
-  fontSize: "1rem",
-  marginRight: "8px",
-  outline: "none",
-  transition: "border 0.16s",
-};
-
-const percentLabelStyle = {
-  fontSize: "1rem",
-  color: "#444",
-};
-
-const closeButtonStyle = {
-  position: "absolute",
-  top: "12px",
-  right: "14px",
-  background: "none",
-  border: "none",
-  fontSize: "1.5rem",
-  color: "#888",
-  cursor: "pointer",
-  borderRadius: "50%",
-  width: "32px",
-  height: "32px",
-  lineHeight: "32px",
-  textAlign: "center",
-  transition: "background 0.15s",
-};
 
 function SlippageModal({ isOpen, onClose, onSelectSlippage, currentSlippage }) {
   const [customValue, setCustomValue] = useState(
@@ -127,36 +33,35 @@ function SlippageModal({ isOpen, onClose, onSelectSlippage, currentSlippage }) {
   const handlePresetClick = (value) => {
     onSelectSlippage(value);
     setCustomValue("");
+    onClose()
   };
 
   const handleCustomChange = (e) => {
     const val = e.target.value;
-    // Only allow numbers and decimals
-    if (/^\d*\.?\d*$/.test(val)) {
-      setCustomValue(val);
-      const num = parseFloat(val);
-      if (!isNaN(num)) {
-        onSelectSlippage(num);
-      }
-    }
+    setCustomValue(cleanNumber(val))
   };
 
   return (
-    <div style={modalOverlayStyle}>
-      <div style={modalCardStyle}>
+    <div className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]">
+      <div className="bg-white rounded-2xl shadow-lg p-8 min-w-[320px] max-w-[90vw] flex flex-col items-center relative">
         <button
           aria-label="Close"
-          style={closeButtonStyle}
+          className="absolute top-3 right-4 bg-transparent border-none text-2xl text-gray-500 cursor-pointer rounded-full w-8 h-8 leading-8 text-center transition-colors duration-150 hover:bg-gray-100"
           onClick={onClose}
         >
           &times;
         </button>
-        <div style={titleStyle}>Adjust Slippage Tolerance</div>
-        <div style={presetContainerStyle}>
+        <div className="text-xl font-semibold mb-5 text-gray-800 text-center">
+          Adjust Slippage Tolerance
+        </div>
+        <div className="flex gap-3 mb-5">
           {PRESET_SLIPPAGES.map((val) => (
             <button
               key={val}
-              style={presetButtonStyle(Number(currentSlippage) === val)}
+              className={`px-4 py-2 rounded-lg font-medium text-base cursor-pointer transition-all duration-150 ${Number(currentSlippage) === val
+                ? "bg-indigo-600 text-white shadow-md outline-2 outline outline-indigo-500"
+                : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                }`}
               onClick={() => handlePresetClick(val)}
               type="button"
             >
@@ -164,19 +69,24 @@ function SlippageModal({ isOpen, onClose, onSelectSlippage, currentSlippage }) {
             </button>
           ))}
         </div>
-        <div style={inputContainerStyle}>
+        <div className="flex items-center gap-2 mb-5">
           <input
-            type="number"
             min="0"
             step="0.01"
             placeholder="Custom"
-            style={inputStyle}
+            className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-base outline-none transition-colors duration-150 focus:border-indigo-500"
             value={customValue}
             onChange={handleCustomChange}
             aria-label="Custom slippage percent"
           />
-          <span style={percentLabelStyle}>%</span>
+          <span className="text-base text-gray-600">%</span>
         </div>
+        <button
+          className="w-full bg-indigo-600 text-white rounded-lg px-4 py-2 font-medium text-base cursor-pointer transition-colors duration-150 hover:bg-indigo-700"
+          onClick={() => handlePresetClick(parseNumber(customValue))}
+        >
+          Apply
+        </button>
       </div>
     </div>
   );

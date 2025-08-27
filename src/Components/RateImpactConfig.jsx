@@ -1,5 +1,4 @@
 import { useState, memo } from "react";
-import { parseNumber } from "../utils";
 import React from "react";
 
 const RateImpactConfig = memo(function RateImpactConfig({
@@ -70,7 +69,7 @@ const RateImpactConfig = memo(function RateImpactConfig({
         ) : error ? (
           <span className="text-red-500 text-xs">Error</span>
         ) : (
-          <span>{parseNumber(impact)}% Impact | {parseNumber(slippage)} Slippage</span>
+          <span>{impact}% Impact | {slippage} Slippage</span>
         )}
         <div onClick={onSlippageSettingClick}>
           <svg

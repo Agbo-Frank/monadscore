@@ -1,6 +1,7 @@
 import { useMemo, memo } from "react";
 import { FaWallet } from "react-icons/fa";
-import { compareString, formatCurrency, isEmpty, parseNumber } from "../utils";
+import { cleanNumber, compareString, formatCurrency, formatTokenBalance, isEmpty } from "../utils";
+import numeral from "numeral";
 
 const TradeSection = memo(function TradeSection({
   type = "buy", // "buy" or "sell"
@@ -27,23 +28,54 @@ const TradeSection = memo(function TradeSection({
 
   let approxValue = useMemo(() => {
     if (isEmpty(amount) || isEmpty(coin?.price)) return 0;
-    return parseNumber(amount) * parseNumber(coin?.price)
+    return numeral(amount).multiply(coin?.price).value()
   }, [amount, coin?.price]);
 
   const isSell = type === "sell";
 
   const handleAmountChange = (value) => {
-    onAmountChange(parseNumber(value));
+    const formattedValue = cleanNumber(value);
+    onAmountChange(formattedValue);
   };
 
-  const handlePercentageClick = (percentage) => {
-    const balance = parseNumber(tokenBalance?.balance);
+  const handleInputChange = (e) => {
+    handleAmountChange(e.target.value);
+  };
+
+  // Handle key press to prevent invalid characters from being entered
+  const handleKeyPress = (e) => {
+    const char = e.key;
+    const currentValue = e.target.value;
+
+    // Allow control keys (backspace, delete, arrow keys, etc.)
+    if (e.ctrlKey || e.metaKey ||
+      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'Home', 'End', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(char)) {
+      return;
+    }
+
+    // Allow digits
+    if (/\d/.test(char)) {
+      return;
+    }
+
+    // Allow decimal point if there isn't one already
+    if (char === '.' && !currentValue.includes('.')) {
+      return;
+    }
+
+    // Allow minus sign only at the beginning and if there isn't one already
+    if (char === '-' && !currentValue.includes('-') && e.target.selectionStart === 0) {
+      return;
+    }
+
+    // Prevent all other characters
+    e.preventDefault();
+  };
+
+  const handlePercentageClick = (percentage = 100) => {
+    const balance = parseFloat(tokenBalance?.balance);
     const calculatedAmount = balance * (percentage / 100);
-    onAmountChange(calculatedAmount);
-  };
-
-  const handleMaxClick = () => {
-    const formattedAmount = parseNumber(tokenBalance?.balance);
+    const formattedAmount = cleanNumber(calculatedAmount.toString());
     onAmountChange(formattedAmount);
   };
 
@@ -54,7 +86,7 @@ const TradeSection = memo(function TradeSection({
         <div className="flex items-center gap-2 text-[#18181899] text-sm font-medium">
           <FaWallet />
           <span>
-            {(tokenBalance?.balance || 0).toFixed(6)} {coin?.code || ""}
+            {formatTokenBalance(tokenBalance?.balance)} {coin?.code || ""}
           </span>
           {isSell && (
             <>
@@ -66,7 +98,7 @@ const TradeSection = memo(function TradeSection({
               </button>
               <button
                 className="py-2 px-3 rounded bg-[#E5E5E5] text-[#181818] font-medium hover:bg-[#D9D9D9] transition"
-                onClick={handleMaxClick}
+                onClick={() => handlePercentageClick()}
               >
                 Max
               </button>
@@ -101,12 +133,14 @@ const TradeSection = memo(function TradeSection({
         </div>
         <div className="flex flex-col w-full">
           <input
-            type="number"
+            type="text"
+            inputMode="decimal"
             className="w-full bg-transparent text-right font-medium outline-none placeholder:text-[#939393] text-[1.5rem]"
             placeholder="0.00"
             value={amount}
             disabled={!isSell}
-            onChange={(e) => handleAmountChange(e.target.value)}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyPress}
             style={{
               MozAppearance: "textfield",
               appearance: "textfield",
@@ -115,7 +149,6 @@ const TradeSection = memo(function TradeSection({
               WebkitInnerSpinButton: "none",
               WebkitOuterSpinButton: "none",
             }}
-            min="0"
           />
           <span className="block text-right text-sm text-[#939393] mt-1">
             ~{formatCurrency(approxValue)}
@@ -126,4 +159,4 @@ const TradeSection = memo(function TradeSection({
   )
 });
 
-export default TradeSection; 
+export default TradeSection;

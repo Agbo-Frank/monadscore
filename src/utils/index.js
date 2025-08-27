@@ -40,53 +40,6 @@ export const isEmpty = (mixedVar) => {
 
 export const clearCache = () => mutate(() => true, undefined, { revalidate: false });
 
-export const parseNumber = (value) => {
-  // Handle empty/null/undefined values
-  if (isEmpty(value)) return 0;
-
-  // Convert to string and clean
-  let stringValue = String(value).trim();
-  if (stringValue === '') {
-    return 0;
-  }
-
-  // Remove any non-numeric characters except decimal point and minus sign
-  stringValue = stringValue.replace(/[^0-9.-]/g, '');
-
-  // Prevent multiple decimal points
-  const decimalCount = (stringValue.match(/\./g) || []).length;
-  if (decimalCount > 1) {
-    const parts = stringValue.split('.');
-    stringValue = parts[0] + '.' + parts.slice(1).join('');
-  }
-
-  // Prevent multiple minus signs (keep only the first one at the beginning)
-  const minusCount = (stringValue.match(/-/g) || []).length;
-  if (minusCount > 1) {
-    stringValue = stringValue.replace(/-/g, '');
-    if (minusCount > 0) {
-      stringValue = '-' + stringValue;
-    }
-  }
-
-  // Prevent leading zeros (except for decimal numbers like 0.5)
-  if (stringValue.startsWith('0') && stringValue.length > 1 && !stringValue.startsWith('0.')) {
-    stringValue = stringValue.replace(/^0+/, '0');
-    if (stringValue === '0' && !stringValue.includes('.')) {
-      stringValue = '';
-    }
-  }
-
-  // Parse the cleaned value
-  const num = parseFloat(stringValue);
-
-  // Return 0 if parsing fails (but allow negative numbers)
-  if (isNaN(num)) {
-    return 0;
-  }
-  return num;
-};
-
 export const formatCurrency = (value, prefix = "$") => {
   value = parseNumber(value)
   return `${prefix}${value
@@ -117,3 +70,76 @@ export const truncateAddress = (address, startChars = 4, endChars = 4) => {
 };
 
 export const delay = (seconds = 10) => new Promise(resolve => setTimeout(resolve, seconds * 1000));
+
+export const formatTokenBalance = (balance) => {
+  if (!balance) return 0;
+  const decimalPart = balance.toString().split('.')[1];
+  if (decimalPart && decimalPart.length > 6) {
+    return balance.toFixed(6);
+  }
+  return balance;
+};
+
+
+// returns a clean number which in string
+export const cleanNumber = (value) => {
+  // Remove any characters that aren't digits, decimal point, or minus sign
+  let cleanValue = value.replace(/[^\d.-]/g, '');
+
+  // Handle minus sign - only allow at the beginning
+  if (cleanValue.includes('-')) {
+    const minusCount = (cleanValue.match(/-/g) || []).length;
+    if (minusCount > 1) {
+      // Remove extra minus signs
+      cleanValue = cleanValue.replace(/-/g, '');
+      if (value.startsWith('-')) {
+        cleanValue = '-' + cleanValue;
+      }
+    } else if (!cleanValue.startsWith('-')) {
+      // Move minus to beginning if it's not already there
+      cleanValue = '-' + cleanValue.replace('-', '');
+    }
+  }
+
+  // Handle decimal points - only allow one
+  const decimalCount = (cleanValue.match(/\./g) || []).length;
+  if (decimalCount > 1) {
+    const parts = cleanValue.split('.');
+    // Keep first part and first decimal part, ignore the rest
+    cleanValue = parts[0] + '.' + parts.slice(1).join('');
+  }
+
+  // Prevent multiple zeros at the beginning (except for 0.xxx format)
+  cleanValue = cleanValue.replace(/^(-?)0+(\d)/, '$1$2');
+
+  // Handle edge cases
+  if (cleanValue === '-') return cleanValue; // Allow typing minus
+  if (cleanValue === '-.') return cleanValue; // Allow typing -0.
+  if (cleanValue === '.') return '0.'; // Convert . to 0.
+  if (cleanValue === '-.') return '-0.'; // Convert -. to -0.
+
+  return cleanValue;
+};
+
+
+// returns a number 
+export const parseNumber = (value) => {
+  // Handle empty/null/undefined values
+  if (isEmpty(value)) return 0;
+
+  // Convert to string and clean
+  let stringValue = String(value).trim();
+  if (stringValue === '') {
+    return 0;
+  }
+
+  stringValue = cleanNumber(stringValue)
+  // Parse the cleaned value
+  const num = parseFloat(stringValue);
+
+  // Return 0 if parsing fails (but allow negative numbers)
+  if (isNaN(num)) {
+    return 0;
+  }
+  return num;
+};

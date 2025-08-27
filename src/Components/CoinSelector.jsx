@@ -1,16 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { formatCurrency } from '../utils';
+import { formatCurrency, formatTokenBalance } from '../utils';
 
 const CoinSelector = ({
   isOpen,
   onClose,
   onSelectCoin,
-  tokens = [],
-  isLoading = false
+  tokens = []
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(isLoading);
-
   // Filter tokens on-the-fly based on search term
   const filteredTokens = useCallback(() => {
     if (!searchTerm.trim()) {
@@ -55,11 +52,7 @@ const CoinSelector = ({
           </button>
         </div>
         <div className="overflow-y-auto flex-1">
-          {loading ? (
-            <div className="p-5 text-center text-gray-600">
-              Loading...
-            </div>
-          ) : filteredTokens().length === 0 ? (
+          {filteredTokens().length === 0 ? (
             <div className="p-5 text-center text-gray-600">
               {searchTerm.trim() ? 'No tokens found matching your search.' : 'No tokens available.'}
             </div>
@@ -84,7 +77,7 @@ const CoinSelector = ({
                 {
                   coin?.balance > 0 &&
                   <div className="flex flex-col justify-end text-right text-sm ml-3 whitespace-nowrap">
-                    <span className='font-medium'>{coin.balance.toFixed(6)}</span>
+                    <span className='font-medium'>{formatTokenBalance(coin.balance)}</span>
                     <span className='text-xs'>{formatCurrency(coin.balance_usd)}</span>
                   </div>
                 }

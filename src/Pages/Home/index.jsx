@@ -32,7 +32,7 @@ const Home = () => {
   const account = useActiveAccount()
   const [sellCoin, setSellCoin] = useState(null);
   const [buyCoin, setBuyCoin] = useState(null);
-  const [sellAmount, setSellAmount] = useState(0);
+  const [sellAmount, setSellAmount] = useState("");
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [activeSelectorType, setActiveSelectorType] = useState(null); // "sell" or "buy"
   const [isSlippageOpen, setIsSlippageOpen] = useState(false);
@@ -69,8 +69,8 @@ const Home = () => {
 
   // Validation for swap
   const canSwap = useMemo(() => {
-    const enteredAmount = parseNumber(sellAmount);
-    const returnedAmount = parseNumber(input_amount);
+    const enteredAmount = parseFloat(sellAmount);
+    const returnedAmount = parseFloat(input_amount);
 
     return (
       account?.address &&
@@ -250,10 +250,7 @@ const Home = () => {
           isOpen={isSlippageOpen}
           onClose={() => setIsSlippageOpen(false)}
           currentSlippage={slippage}
-          onSelectSlippage={(value) => {
-            setSlippage(value);
-            setIsSlippageOpen(false);
-          }}
+          onSelectSlippage={setSlippage}
         />
       </section>
     </div>
