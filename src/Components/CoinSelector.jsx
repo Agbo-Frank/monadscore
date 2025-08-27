@@ -84,8 +84,8 @@ const CoinSelector = ({
                 {
                   coin?.balance > 0 &&
                   <div className="flex flex-col justify-end text-right text-sm ml-3 whitespace-nowrap">
-                    <span className='font-medium'>{coin.price.toFixed(6)}</span>
-                    <span className='text-xs'>{formatCurrency(coin.price)}</span>
+                    <span className='font-medium'>{coin.balance.toFixed(6)}</span>
+                    <span className='text-xs'>{formatCurrency(coin.balance_usd)}</span>
                   </div>
                 }
               </div>
