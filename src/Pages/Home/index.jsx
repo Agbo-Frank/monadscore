@@ -1,0 +1,237 @@
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { herobg } from "../../Assets";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+} from "chart.js";
+import CoinCard from "../../Components/CoinCard";
+import CoinSelector from "../../Components/CoinSelector";
+import SlippageModal from "../../Components/SlippageModal";
+import { compareString, isEmpty, parseNumber } from "../../utils";
+import { useActiveAccount } from "thirdweb/react";
+import useSWR from "swr";
+import endpoint from "../../Api/endpoint";
+import { TradeSection } from "../../Components";
+import useFetcher from "../../hooks/use-fetcher";
+import { SwapButton } from "../../Components";
+import RateImpactConfig from "../../Components/RateImpactConfig";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip
+);
+
+const Home = () => {
+  const account = useActiveAccount()
+  const [sellCoin, setSellCoin] = useState(null);
+  const [buyCoin, setBuyCoin] = useState(null);
+  const [sellAmount, setSellAmount] = useState(0);
+  const [, setBuyAmount] = useState(0);
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [activeSelectorType, setActiveSelectorType] = useState(null); // "sell" or "buy"
+  const [isSlippageOpen, setIsSlippageOpen] = useState(false);
+  const [slippage, setSlippage] = useState(0.5);
+  const { data: tokenData } = useSWR(
+    account?.address ?
+      `${endpoint.tokens}/${account?.address}` :
+      endpoint.tokens
+  )
+  const { data: balanceData } = useSWR(
+    account?.address ?
+      `${endpoint.balances}/${account?.address}` :
+      null
+  )
+  const { trigger: getQuote, data: quoteData } = useFetcher(endpoint.quote)
+  const tokens = tokenData?.data || []
+  const { rate, price_impact, quoteId, input_amount } = useMemo(() => {
+    if (isEmpty(quoteData?.data)) {
+      return {
+        rate: 0,
+        price_impact: 0,
+        quoteId: null,
+        input_amount: 0
+      }
+    }
+
+    return quoteData?.data
+  }, [quoteData?.data])
+  const buyAmount = useMemo(() => (sellAmount || 0) * (rate || 0), [rate, sellAmount])
+
+  // Validation for swap
+  const canSwap = useCallback(() => {
+    const enteredAmount = parseNumber(sellAmount);
+    const returnedAmount = parseNumber(input_amount);
+
+    return (
+      account?.address &&
+      sellCoin?.address &&
+      buyCoin?.address &&
+      enteredAmount > 0 &&
+      enteredAmount === returnedAmount &&
+      quoteId
+    );
+  }, [account?.address, sellCoin?.address, buyCoin?.address, sellAmount, quoteId]);
+
+  const handleSelectCoin = (type = "sell") => {
+    setActiveSelectorType(type);
+    setIsSelectorOpen(true);
+    handleGetQuote()
+  }
+
+  const handleGetQuote = useCallback(async () => {
+    if (
+      isEmpty(sellCoin?.address) ||
+      isEmpty(buyCoin.address)
+    ) return;
+
+    // Convert sellAmount to number and ensure it's valid
+    const amount = parseNumber(sellAmount);
+    await getQuote({
+      amount: amount ? amount : 1,
+      from: sellCoin.address,
+      to: buyCoin.address
+    });
+  }, [sellAmount, sellCoin?.address, buyCoin?.address, getQuote])
+
+  useEffect(() => {
+    if (sellCoin && buyCoin) {
+      const timeoutId = setTimeout(() => {
+        handleGetQuote();
+      }, 1000); // 1 second delay
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [sellAmount, buyCoin?.address, sellCoin]);
+
+  const handleSwap = () => {
+    setSellCoin(buyCoin);
+    setBuyCoin(sellCoin);
+    setSellAmount(buyAmount);
+    setBuyAmount(sellAmount);
+  };
+
+  useEffect(() => {
+    if (tokens && tokens?.length > 0) {
+      const defaultBuyCoin = tokens.find(t => compareString(t.code, "usdc"))
+      const defaultSellCoin = tokens.find(t => compareString(t.code, "mon"))
+      setBuyCoin(defaultBuyCoin)
+      setSellCoin(defaultSellCoin)
+    }
+  }, [tokens])
+
+  return (
+    <div className="w-full h-full">
+      {/* Hero Section */}
+      <section className="w-full relative py-20 sm:py-32 min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden">
+        {/* Image Background */}
+        <img
+          src={herobg}
+          alt="Hero background"
+          className="absolute top-0 left-0 w-full h-full object-cover z-10"
+        />
+
+        {/* Dex Content */}
+        <div className="relative z-10 bg-white/10 backdrop-blur-md p-6 rounded-2xl max-w-full sm:max-w-xl md:max-w-2xl w-full mx-auto">
+          <TradeSection
+            type="sell"
+            amount={sellAmount}
+            onAmountChange={setSellAmount}
+            onSelect={() => handleSelectCoin()}
+            balance={balanceData?.data || []}
+            coin={sellCoin}
+          />
+
+          {/* Swap Button */}
+          <div className="flex justify-center -mt-8 -mb-3">
+            <button
+              onClick={handleSwap}
+              className="bg-[#F3F3F3] px-[24px] py-[8px] ring ring-[#D9D9D9] rounded transition-transform hover:rotate-180"
+              aria-label="Swap coins"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                stroke="#181818"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <polyline points="17 1 21 5 17 9" />
+                <line x1="21" y1="5" x2="3" y2="5" />
+                <polyline points="7 23 3 19 7 15" />
+                <line x1="3" y1="19" x2="21" y2="19" />
+              </svg>
+            </button>
+          </div>
+
+          <TradeSection
+            type="buy"
+            amount={(sellAmount || 0) * (rate || 0)}
+            onAmountChange={setBuyAmount}
+            onSelect={() => handleSelectCoin("buy")}
+            coin={buyCoin}
+            balance={balanceData?.data || []}
+          />
+
+          {/* RAte & Impact */}
+          <RateImpactConfig
+            {...{
+              sellCoin,
+              buyCoin,
+              rate,
+              impact: price_impact
+            }}
+          />
+          <SwapButton
+            sellCoin={sellCoin}
+            amount={Number(sellAmount)}
+            quoteId={quoteId}
+            disabled={!canSwap()}
+            onSwapCompleted={() => {
+              setSellAmount("");
+              setBuyAmount("");
+            }}
+          />
+          {/* Coin cards */}
+          <div className="pt-6 md:pt-0 md:mt-6 grid md:grid-cols-2 gap-2.5 max-w-full sm:max-w-2xl mx-auto">
+            <CoinCard coin={sellCoin} />
+            <CoinCard coin={buyCoin} />
+          </div>
+        </div>
+
+        <CoinSelector
+          isOpen={isSelectorOpen}
+          onClose={() => setIsSelectorOpen(false)}
+          tokens={tokens}
+          onSelectCoin={(coin) => {
+            if (activeSelectorType === "sell") {
+              setSellCoin(coin);
+            } else if (activeSelectorType === "buy") {
+              setBuyCoin(coin);
+            }
+          }}
+        />
+        <SlippageModal
+          isOpen={isSlippageOpen}
+          onClose={() => setIsSlippageOpen(false)}
+          currentSlippage={slippage}
+          onSelectSlippage={(value) => {
+            setSlippage(value);
+            setIsSlippageOpen(false);
+          }}
+        />
+      </section>
+    </div>
+  );
+};
+
+export default Home;

@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&display=swap');
+
+.text-outline {
+  color: transparent;
+  -webkit-text-stroke: 2px white;
+  /* adjust thickness and color */
+  opacity: 0.1;
+}
+
+:root {
+  font-family: 'Raleway', sans-serif;
+}
