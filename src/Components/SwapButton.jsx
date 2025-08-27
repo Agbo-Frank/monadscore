@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import endpoint from '../Api/endpoint';
 import ConnectButton from './ConnectButton';
 import { useActiveAccount } from 'thirdweb/react';
@@ -10,13 +10,13 @@ import { getContract, sendTransaction } from 'thirdweb';
 import client from '../thirdweb/clients';
 import { monadTestnet } from 'thirdweb/chains';
 
-const SwapButton = ({
+const SwapButton = memo(function SwapButton({
   sellCoin,
   amount,
   quoteId,
   onSwapCompleted,
   disabled = false
-}) => {
+}) {
   const toastId = "swap"
   const account = useActiveAccount()
   const [status, setStatus] = useState('idle');
@@ -163,6 +163,6 @@ const SwapButton = ({
       {getButtonContent()}
     </button>
   );
-};
+});
 
 export default SwapButton; 

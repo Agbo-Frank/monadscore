@@ -33,21 +33,24 @@ const Home = () => {
   const [sellCoin, setSellCoin] = useState(null);
   const [buyCoin, setBuyCoin] = useState(null);
   const [sellAmount, setSellAmount] = useState(0);
-  const [, setBuyAmount] = useState(0);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [activeSelectorType, setActiveSelectorType] = useState(null); // "sell" or "buy"
   const [isSlippageOpen, setIsSlippageOpen] = useState(false);
   const [slippage, setSlippage] = useState(0.5);
+  const [debouncedSellAmount, setDebouncedSellAmount] = useState(0);
+
   const { data: tokenData } = useSWR(
     account?.address ?
       `${endpoint.tokens}/${account?.address}` :
-      endpoint.tokens
+      endpoint.tokens,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
   const { data: balanceData } = useSWR(
     account?.address ?
       `${endpoint.balances}/${account?.address}` :
       null
   )
+
   const { trigger: getQuote, data: quoteData } = useFetcher(endpoint.quote)
   const tokens = tokenData?.data || []
   const { rate, price_impact, quoteId, input_amount } = useMemo(() => {
@@ -65,7 +68,7 @@ const Home = () => {
   const buyAmount = useMemo(() => (sellAmount || 0) * (rate || 0), [rate, sellAmount])
 
   // Validation for swap
-  const canSwap = useCallback(() => {
+  const canSwap = useMemo(() => {
     const enteredAmount = parseNumber(sellAmount);
     const returnedAmount = parseNumber(input_amount);
 
@@ -82,23 +85,22 @@ const Home = () => {
   const handleSelectCoin = (type = "sell") => {
     setActiveSelectorType(type);
     setIsSelectorOpen(true);
-    handleGetQuote()
   }
 
   const handleGetQuote = useCallback(async () => {
+    const amount = parseNumber(debouncedSellAmount);
     if (
       isEmpty(sellCoin?.address) ||
-      isEmpty(buyCoin.address)
+      isEmpty(buyCoin?.address)
     ) return;
 
-    // Convert sellAmount to number and ensure it's valid
-    const amount = parseNumber(sellAmount);
     await getQuote({
       amount: amount ? amount : 1,
       from: sellCoin.address,
+      slippage,
       to: buyCoin.address
     });
-  }, [sellAmount, sellCoin?.address, buyCoin?.address, getQuote])
+  }, [debouncedSellAmount, slippage, sellCoin?.address, buyCoin?.address, getQuote]);
 
   useEffect(() => {
     if (sellCoin && buyCoin) {
@@ -108,23 +110,39 @@ const Home = () => {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [sellAmount, buyCoin?.address, sellCoin]);
+  }, [debouncedSellAmount, buyCoin?.address, sellCoin?.address]);
 
   const handleSwap = () => {
     setSellCoin(buyCoin);
     setBuyCoin(sellCoin);
     setSellAmount(buyAmount);
-    setBuyAmount(sellAmount);
   };
 
-  useEffect(() => {
-    if (tokens && tokens?.length > 0) {
+  const loadCoin = useCallback(() => {
+    if (isEmpty(tokens)) return;
+
+    if (isEmpty(buyCoin)) {
       const defaultBuyCoin = tokens.find(t => compareString(t.code, "usdc"))
-      const defaultSellCoin = tokens.find(t => compareString(t.code, "mon"))
       setBuyCoin(defaultBuyCoin)
+    }
+
+    if (isEmpty(sellCoin)) {
+      const defaultSellCoin = tokens.find(t => compareString(t.code, "mon"))
       setSellCoin(defaultSellCoin)
     }
   }, [tokens])
+
+  useEffect(() => {
+    loadCoin()
+  }, [loadCoin])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSellAmount(sellAmount);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [sellAmount]);
 
   return (
     <div className="w-full h-full">
@@ -176,7 +194,7 @@ const Home = () => {
           <TradeSection
             type="buy"
             amount={(sellAmount || 0) * (rate || 0)}
-            onAmountChange={setBuyAmount}
+            onAmountChange={() => { }}
             onSelect={() => handleSelectCoin("buy")}
             coin={buyCoin}
             balance={balanceData?.data || []}
@@ -188,17 +206,18 @@ const Home = () => {
               sellCoin,
               buyCoin,
               rate,
-              impact: price_impact
+              slippage,
+              impact: price_impact,
+              onSlippageSettingClick: () => setIsSlippageOpen(true),
             }}
           />
           <SwapButton
             sellCoin={sellCoin}
             amount={Number(sellAmount)}
             quoteId={quoteId}
-            disabled={!canSwap()}
+            disabled={!canSwap}
             onSwapCompleted={() => {
-              setSellAmount("");
-              setBuyAmount("");
+              setSellAmount(0)
             }}
           />
           {/* Coin cards */}
@@ -213,9 +232,16 @@ const Home = () => {
           onClose={() => setIsSelectorOpen(false)}
           tokens={tokens}
           onSelectCoin={(coin) => {
-            if (activeSelectorType === "sell") {
+            if (
+              activeSelectorType === "sell" &&
+              !compareString(coin?.address, buyCoin.address)
+            ) {
               setSellCoin(coin);
-            } else if (activeSelectorType === "buy") {
+            }
+            if (
+              activeSelectorType === "buy" &&
+              !compareString(coin?.address, sellCoin.address)
+            ) {
               setBuyCoin(coin);
             }
           }}

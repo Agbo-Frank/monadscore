@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -24,7 +24,7 @@ ChartJS.register(
   Legend
 );
 
-const CoinCard = ({ coin }) => {
+const CoinCard = memo(function CoinCard({ coin }) {
   const { data, isLoading } = useSWR(coin?.address ? `${endpoint.chart}/${coin?.address}` : null)
   const percentChange = data?.data?.change || 0
 
@@ -152,6 +152,6 @@ const CoinCard = ({ coin }) => {
       </div>
     </button>
   );
-};
+});
 
 export default CoinCard;

@@ -1,8 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { FaWallet } from "react-icons/fa";
 import { compareString, formatCurrency, isEmpty, parseNumber } from "../utils";
 
-export default function TradeSection({
+const TradeSection = memo(function TradeSection({
   type = "buy", // "buy" or "sell"
   coin,
   amount,
@@ -124,4 +124,6 @@ export default function TradeSection({
       </div>
     </div>
   )
-} 
+});
+
+export default TradeSection; 
