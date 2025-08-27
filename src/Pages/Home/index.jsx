@@ -110,7 +110,7 @@ const Home = () => {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [debouncedSellAmount, buyCoin?.address, sellCoin?.address]);
+  }, [debouncedSellAmount, slippage, buyCoin?.address, sellCoin?.address]);
 
   const handleSwap = () => {
     setSellCoin(buyCoin);
