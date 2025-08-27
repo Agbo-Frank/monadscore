@@ -2,7 +2,7 @@ import React, { useState, memo } from 'react';
 import endpoint from '../Api/endpoint';
 import ConnectButton from './ConnectButton';
 import { useActiveAccount } from 'thirdweb/react';
-import { cn, delay } from '../utils';
+import { cn, delay, isNativeCoin } from '../utils';
 import useFetcher from '../hooks/use-fetcher';
 import { toast } from 'sonner';
 import { allowance, approve } from "thirdweb/extensions/erc20";
@@ -19,6 +19,7 @@ const SwapButton = memo(function SwapButton({
 }) {
   const toastId = "swap"
   const account = useActiveAccount()
+
   const [status, setStatus] = useState('idle');
   const { trigger: initiateSwap, isMutating: swapping } = useFetcher(endpoint.route)
 
@@ -49,8 +50,7 @@ const SwapButton = memo(function SwapButton({
 
         toast.loading('Sending transaction to wallet...', { id: toastId });
 
-        const isNativeCoin = sellCoin?.address === "0x0000000000000000000000000000000000000000"
-        if (isNativeCoin) {
+        if (isNativeCoin(sellCoin?.address)) {
           await account.sendTransaction({ to, value, data });
 
           onComplete()

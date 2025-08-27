@@ -11,14 +11,16 @@ import {
 import CoinCard from "../../Components/CoinCard";
 import CoinSelector from "../../Components/CoinSelector";
 import SlippageModal from "../../Components/SlippageModal";
-import { compareString, isEmpty, parseNumber } from "../../utils";
-import { useActiveAccount } from "thirdweb/react";
+import { compareString, isEmpty, parseNumber, isNativeCoin } from "../../utils";
+import { useActiveAccount, useWalletBalance } from "thirdweb/react";
 import useSWR from "swr";
 import endpoint from "../../Api/endpoint";
 import { TradeSection } from "../../Components";
 import useFetcher from "../../hooks/use-fetcher";
 import { SwapButton } from "../../Components";
 import RateImpactConfig from "../../Components/RateImpactConfig";
+import { modeTestnet, monadTestnet } from "thirdweb/chains";
+import client from "../../thirdweb/clients";
 
 ChartJS.register(
   CategoryScale,
@@ -39,20 +41,40 @@ const Home = () => {
   const [slippage, setSlippage] = useState(0.5);
   const [debouncedSellAmount, setDebouncedSellAmount] = useState(0);
 
+  const { data } = useWalletBalance({
+    client,
+    chain: monadTestnet,
+    address: account?.address
+  })
+
   const { data: tokenData } = useSWR(
     account?.address ?
       `${endpoint.tokens}/${account?.address}` :
       endpoint.tokens,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const { data: balanceData } = useSWR(
-    account?.address ?
-      `${endpoint.balances}/${account?.address}` :
-      null
-  )
 
   const { trigger: getQuote, data: quoteData } = useFetcher(endpoint.quote)
-  const tokens = tokenData?.data || []
+
+  const tokens = useMemo(() => {
+    if (!tokenData?.data || !data?.displayValue) return tokenData?.data || [];
+
+    return tokenData?.data?.map(token => {
+      if (isNativeCoin(token.address)) {
+        return {
+          ...token,
+          balance: Number(data.displayValue),
+          balance_usd: (Number(data.displayValue) * (token.price || 0)).toFixed(2)
+        };
+      }
+      return token;
+    });
+  }, [tokenData?.data, data?.displayValue]);
+
+  const balanceData = useMemo(() => {
+    return tokens?.filter(t => t.balance > 0)
+  }, [tokens])
+
   const { rate, price_impact, quoteId, input_amount } = useMemo(() => {
     if (isEmpty(quoteData?.data)) {
       return {
@@ -162,7 +184,7 @@ const Home = () => {
             amount={sellAmount}
             onAmountChange={setSellAmount}
             onSelect={() => handleSelectCoin()}
-            balance={balanceData?.data || []}
+            balance={balanceData || []}
             coin={sellCoin}
           />
 
@@ -197,7 +219,7 @@ const Home = () => {
             onAmountChange={() => { }}
             onSelect={() => handleSelectCoin("buy")}
             coin={buyCoin}
-            balance={balanceData?.data || []}
+            balance={balanceData || []}
           />
 
           {/* RAte & Impact */}

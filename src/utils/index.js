@@ -143,3 +143,7 @@ export const parseNumber = (value) => {
   }
   return num;
 };
+
+export const isNativeCoin = (address) => {
+  return address === "0x0000000000000000000000000000000000000000"
+}
