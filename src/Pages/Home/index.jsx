@@ -54,7 +54,7 @@ const Home = () => {
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
 
-  const { trigger: getQuote, data: quoteData } = useFetcher(endpoint.quote)
+  const { trigger: getQuote, data: quoteData, isMutating: loadingQuote } = useFetcher(endpoint.quote)
 
   const tokens = useMemo(() => {
     if (!tokenData?.data || !data?.displayValue) return tokenData?.data || [];
@@ -85,18 +85,12 @@ const Home = () => {
       }
     }
 
-    return quoteData?.data
+    return {
+      ...quoteData?.data,
+      rate: Number(quoteData?.data?.output_amount) / Number(quoteData?.data?.input_amount)
+    }
   }, [quoteData?.data])
   const buyAmount = useMemo(() => (sellAmount || 0) * (rate || 0), [rate, sellAmount])
-
-  // Check for insufficient balance
-  const hasInsufficientBalance = useMemo(() => {
-    if (!sellAmount || !sellCoin?.address || !balanceData) return false;
-    const balance = balanceData.find(b => compareString(b.address, sellCoin.address));
-
-    if (!balance || !balance.balance || parseFloat(balance.balance) <= 0) return true;
-    return parseFloat(sellAmount) > parseFloat(balance.balance);
-  }, [sellAmount, sellCoin?.address, balanceData]);
 
   // Validation for swap
   const canSwap = useMemo(() => {
@@ -109,10 +103,9 @@ const Home = () => {
       buyCoin?.address &&
       enteredAmount > 0 &&
       enteredAmount === returnedAmount &&
-      quoteId &&
-      !hasInsufficientBalance
+      quoteId
     );
-  }, [account?.address, sellCoin?.address, buyCoin?.address, sellAmount, quoteId, balanceData]);
+  }, [account?.address, sellCoin?.address, buyCoin?.address, sellAmount, quoteId]);
 
   const handleSelectCoin = (type = "sell") => {
     setActiveSelectorType(type);
@@ -239,6 +232,7 @@ const Home = () => {
               buyCoin,
               rate,
               slippage,
+              isLoading: loadingQuote,
               impact: price_impact,
               onSlippageSettingClick: () => setIsSlippageOpen(true),
             }}
@@ -248,7 +242,7 @@ const Home = () => {
             amount={Number(sellAmount)}
             quoteId={quoteId}
             disabled={!canSwap}
-            hasInsufficientBalance={hasInsufficientBalance}
+            balanceData={balanceData || []}
             onSwapCompleted={() => {
               setSellAmount(0)
             }}
