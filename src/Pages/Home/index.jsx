@@ -96,7 +96,7 @@ const Home = () => {
 
     // Check if user has sufficient balance
     const balance = balanceData?.find(b => compareString(b.address, sellCoin?.address));
-    const hasInsufficientBalance = balance && enteredAmount > parseFloat(balance.balance);
+    const hasInsufficientBalance = (balance && balance.balance > 0) && (enteredAmount > parseFloat(balance.balance));
 
     return (
       account?.address &&
