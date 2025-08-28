@@ -15,7 +15,8 @@ const SwapButton = memo(function SwapButton({
   amount,
   quoteId,
   onSwapCompleted,
-  disabled = false
+  disabled = false,
+  hasInsufficientBalance = false
 }) {
   const toastId = "swap"
   const account = useActiveAccount()
@@ -151,6 +152,8 @@ const SwapButton = memo(function SwapButton({
           <span>Failed</span>
         </div>
       );
+    } else if (hasInsufficientBalance) {
+      return `Insufficient ${sellCoin?.code || "Balance"}`;
     } else {
       return "Swap";
     }

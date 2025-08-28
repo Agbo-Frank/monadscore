@@ -19,7 +19,7 @@ import { TradeSection } from "../../Components";
 import useFetcher from "../../hooks/use-fetcher";
 import { SwapButton } from "../../Components";
 import RateImpactConfig from "../../Components/RateImpactConfig";
-import { modeTestnet, monadTestnet } from "thirdweb/chains";
+import { monadTestnet } from "thirdweb/chains";
 import client from "../../thirdweb/clients";
 
 ChartJS.register(
@@ -89,14 +89,19 @@ const Home = () => {
   }, [quoteData?.data])
   const buyAmount = useMemo(() => (sellAmount || 0) * (rate || 0), [rate, sellAmount])
 
+  // Check for insufficient balance
+  const hasInsufficientBalance = useMemo(() => {
+    if (!sellAmount || !sellCoin?.address || !balanceData) return false;
+    const balance = balanceData.find(b => compareString(b.address, sellCoin.address));
+
+    if (!balance || !balance.balance || parseFloat(balance.balance) <= 0) return true;
+    return parseFloat(sellAmount) > parseFloat(balance.balance);
+  }, [sellAmount, sellCoin?.address, balanceData]);
+
   // Validation for swap
   const canSwap = useMemo(() => {
     const enteredAmount = parseFloat(sellAmount);
     const returnedAmount = parseFloat(input_amount);
-
-    // Check if user has sufficient balance
-    const balance = balanceData?.find(b => compareString(b.address, sellCoin?.address));
-    const hasInsufficientBalance = (balance && balance.balance > 0) && (enteredAmount > parseFloat(balance.balance));
 
     return (
       account?.address &&
@@ -243,6 +248,7 @@ const Home = () => {
             amount={Number(sellAmount)}
             quoteId={quoteId}
             disabled={!canSwap}
+            hasInsufficientBalance={hasInsufficientBalance}
             onSwapCompleted={() => {
               setSellAmount(0)
             }}

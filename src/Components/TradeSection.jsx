@@ -157,11 +157,6 @@ const TradeSection = memo(function TradeSection({
               WebkitOuterSpinButton: "none",
             }}
           />
-          {hasInsufficientBalance && (
-            <span className="block text-right text-xs text-red-500 mt-1 font-medium">
-              Insufficient {coin?.code || "Balance"}
-            </span>
-          )}
           <span className="block text-right text-sm text-[#939393] mt-1">
             ~{formatCurrency(approxValue)}
           </span>
