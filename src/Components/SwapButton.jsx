@@ -19,7 +19,6 @@ const SwapButton = memo(function SwapButton({
 }) {
   const toastId = "swap"
   const account = useActiveAccount()
-
   const [status, setStatus] = useState('idle');
   const { trigger: initiateSwap, isMutating: swapping } = useFetcher(endpoint.route)
 
@@ -42,7 +41,7 @@ const SwapButton = memo(function SwapButton({
 
       const result = await initiateSwap({
         sender: account?.address,
-        quote_id: quoteId
+        quote_id: quoteId,
       });
 
       if (result?.data) {
@@ -51,7 +50,12 @@ const SwapButton = memo(function SwapButton({
         toast.loading('Sending transaction to wallet...', { id: toastId });
 
         if (isNativeCoin(sellCoin?.address)) {
-          await account.sendTransaction({ to, value, data });
+          await account.sendTransaction({
+            to,
+            value,
+            data,
+            chainId: monadTestnet.id
+          });
 
           onComplete()
           return;
@@ -81,7 +85,11 @@ const SwapButton = memo(function SwapButton({
             amount: approvalAmount
           })
 
-          await sendTransaction({ transaction, account });
+          await sendTransaction({
+            transaction,
+            account,
+            chain: monadTestnet
+          });
 
           toast.loading('Transaction approved successfully...', { id: toastId });
 
@@ -90,7 +98,12 @@ const SwapButton = memo(function SwapButton({
           toast.loading('Waiting for transaction confirmation...', { id: toastId });
         }
 
-        await account.sendTransaction({ to, value, data });
+        await account.sendTransaction({
+          to,
+          value,
+          data,
+          chainId: monadTestnet.id
+        });
 
         onComplete();
         return;
