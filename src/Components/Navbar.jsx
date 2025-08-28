@@ -35,12 +35,12 @@ const Navbar = () => {
       >
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between h-16">
           {/* Logo */}
-          <a href="/" className="text-2xl text-white flex-shrink-0">
+          <a href="/" className="text-2xl text-white flex-1">
             <img src={logo} alt="Logo" className="w-60" />
           </a>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex flex-[2] justify-center">
+          <div className="hidden md:flex flex-1 justify-center">
             <div className="flex items-center lg:space-x-24 bg-[#F675FF]/20 rounded-md">
               {menuItems.map((item) => (
                 <a
@@ -58,7 +58,7 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Connect Wallet */}
-          <div className="hidden md:flex justify-end">
+          <div className="hidden md:flex flex-1 justify-end">
             <ConnectButton
               label={
                 <>
