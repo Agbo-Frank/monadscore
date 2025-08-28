@@ -94,15 +94,20 @@ const Home = () => {
     const enteredAmount = parseFloat(sellAmount);
     const returnedAmount = parseFloat(input_amount);
 
+    // Check if user has sufficient balance
+    const balance = balanceData?.find(b => compareString(b.address, sellCoin?.address));
+    const hasInsufficientBalance = balance && enteredAmount > parseFloat(balance.balance);
+
     return (
       account?.address &&
       sellCoin?.address &&
       buyCoin?.address &&
       enteredAmount > 0 &&
       enteredAmount === returnedAmount &&
-      quoteId
+      quoteId &&
+      !hasInsufficientBalance
     );
-  }, [account?.address, sellCoin?.address, buyCoin?.address, sellAmount, quoteId]);
+  }, [account?.address, sellCoin?.address, buyCoin?.address, sellAmount, quoteId, balanceData]);
 
   const handleSelectCoin = (type = "sell") => {
     setActiveSelectorType(type);

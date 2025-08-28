@@ -33,6 +33,13 @@ const TradeSection = memo(function TradeSection({
 
   const isSell = type === "sell";
 
+  // Check if amount exceeds balance for sell orders
+  const hasInsufficientBalance = useMemo(() => {
+    if (!isSell || isEmpty(amount)) return false;
+    if (isEmpty(tokenBalance?.balance)) return true;
+    return parseFloat(amount) > parseFloat(tokenBalance.balance);
+  }, [isSell, amount, tokenBalance?.balance]);
+
   const handleAmountChange = (value) => {
     const formattedValue = cleanNumber(value);
     onAmountChange(formattedValue);
@@ -150,6 +157,11 @@ const TradeSection = memo(function TradeSection({
               WebkitOuterSpinButton: "none",
             }}
           />
+          {hasInsufficientBalance && (
+            <span className="block text-right text-xs text-red-500 mt-1 font-medium">
+              Insufficient {coin?.code || "Balance"}
+            </span>
+          )}
           <span className="block text-right text-sm text-[#939393] mt-1">
             ~{formatCurrency(approxValue)}
           </span>
