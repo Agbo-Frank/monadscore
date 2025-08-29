@@ -1,4 +1,4 @@
-import { useMemo, memo } from "react";
+import { useMemo, memo, Children } from "react";
 import { FaWallet } from "react-icons/fa";
 import { cleanNumber, compareString, formatCurrency, formatTokenBalance, isEmpty } from "../utils";
 import numeral from "numeral";
@@ -9,7 +9,8 @@ const TradeSection = memo(function TradeSection({
   amount,
   onAmountChange,
   onSelect,
-  balance = []
+  balance = [],
+  children = null
 }) {
   const tokenBalance = useMemo(() => {
     if (isEmpty(balance)) return {
@@ -91,10 +92,6 @@ const TradeSection = memo(function TradeSection({
       <div className="flex justify-between items-center">
         <span className="text-sm font-medium text-[#18181899] capitalize">{type}</span>
         <div className="flex items-center gap-2 text-[#18181899] text-sm font-medium">
-          <FaWallet />
-          <span>
-            {formatTokenBalance(tokenBalance?.balance)} {coin?.code || ""}
-          </span>
           {isSell && (
             <>
               <button
@@ -111,6 +108,13 @@ const TradeSection = memo(function TradeSection({
               </button>
             </>
           )}
+
+          <div className="flex gap-2">
+            <FaWallet />
+            <span>
+              {formatTokenBalance(tokenBalance?.balance)} {coin?.code || ""}
+            </span>
+          </div>
         </div>
       </div>
       <div className="flex flex-row gap-4 mt-2">
@@ -162,6 +166,7 @@ const TradeSection = memo(function TradeSection({
           </span>
         </div>
       </div>
+      {children}
     </div>
   )
 });

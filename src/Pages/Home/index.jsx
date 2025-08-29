@@ -21,6 +21,8 @@ import { SwapButton } from "../../Components";
 import RateImpactConfig from "../../Components/RateImpactConfig";
 import { monadTestnet } from "thirdweb/chains";
 import client from "../../thirdweb/clients";
+import BestRoute from "../../Components/BestRoute";
+import RateImpactConfigV2 from "../../Components/RateImpactConfigv2";
 
 ChartJS.register(
   CategoryScale,
@@ -75,10 +77,12 @@ const Home = () => {
     return tokens?.filter(t => t.balance > 0)
   }, [tokens])
 
-  const { rate, price_impact, quoteId, input_amount } = useMemo(() => {
+  const { rate, platform, fee, price_impact, quoteId, input_amount } = useMemo(() => {
     if (isEmpty(quoteData?.data)) {
       return {
         rate: 0,
+        fee: 0,
+        platform: null,
         price_impact: 0,
         quoteId: null,
         input_amount: 0
@@ -223,20 +227,22 @@ const Home = () => {
             onSelect={() => handleSelectCoin("buy")}
             coin={buyCoin}
             balance={balanceData || []}
-          />
+          >
+            <RateImpactConfigV2
+              {
+              ...{
+                sellCoin,
+                buyCoin,
+                rate,
+                isLoading: loadingQuote,
+                onRefreshRate: handleGetQuote,
+                tiggerSlippageConfig: () => setIsSlippageOpen(true)
+              }
+              }
+            />
+          </TradeSection>
 
           {/* RAte & Impact */}
-          <RateImpactConfig
-            {...{
-              sellCoin,
-              buyCoin,
-              rate,
-              slippage,
-              isLoading: loadingQuote,
-              impact: price_impact,
-              onSlippageSettingClick: () => setIsSlippageOpen(true),
-            }}
-          />
           <SwapButton
             sellCoin={sellCoin}
             buyCoin={buyCoin}
@@ -249,6 +255,16 @@ const Home = () => {
               setSellAmount(0)
             }}
           />
+          <BestRoute
+            // rate={rate}
+            // sellCoin={sellCoin}
+            // buyCoin={buyCoin}
+            impact={price_impact}
+            networkFee={fee}
+            maxSlippage={slippage} // added
+            dexName={platform}
+          />
+
           {/* Coin cards */}
           <div className="pt-6 md:pt-0 md:mt-6 grid md:grid-cols-2 gap-2.5 max-w-full sm:max-w-2xl mx-auto">
             <CoinCard coin={sellCoin} />
