@@ -12,11 +12,13 @@ import { monadTestnet } from 'thirdweb/chains';
 
 const SwapButton = memo(function SwapButton({
   sellCoin,
+  buyCoin,  // Add buyCoin prop
   amount,
   quoteId,
   onSwapCompleted,
   disabled = false,
-  balanceData = []
+  balanceData = [],
+  hasValidQuote = true  // Add prop to check if quote is valid
 }) {
   const toastId = "swap"
   const account = useActiveAccount()
@@ -169,6 +171,8 @@ const SwapButton = memo(function SwapButton({
           <span>Failed</span>
         </div>
       );
+    } else if (!hasValidQuote) {
+      return `No swap path found for ${sellCoin?.code} <> ${buyCoin?.code}`;
     } else if (hasEmptyAmount) {
       return "Enter an amount";
     } else if (hasInsufficientBalance) {
@@ -181,6 +185,7 @@ const SwapButton = memo(function SwapButton({
   const isDisabled = disabled ||
     hasEmptyAmount ||
     hasInsufficientBalance ||
+    !hasValidQuote ||
     status === 'pending'
 
   if (!account) return <ConnectButton />

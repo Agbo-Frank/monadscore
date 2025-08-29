@@ -147,3 +147,7 @@ export const parseNumber = (value) => {
 export const isNativeCoin = (address) => {
   return address === "0x0000000000000000000000000000000000000000"
 }
+
+export const isEthereumAddress = (str) => {
+  return /^0x[a-fA-F0-9]{40}$/.test(str);
+}

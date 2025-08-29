@@ -4,5 +4,6 @@ export default {
   "balances": "/balances",
   "quote": '/quote',
   "route": "/route",
-  "chart": "/chart"
+  "chart": "/chart",
+  "token": "/token"
 }

@@ -84,10 +84,10 @@ const Home = () => {
         input_amount: 0
       }
     }
-
+    const { output_amount, input_amount } = quoteData?.data
     return {
       ...quoteData?.data,
-      rate: Number(quoteData?.data?.output_amount) / Number(quoteData?.data?.input_amount)
+      rate: output_amount ? Number(output_amount) / Number(input_amount) : null
     }
   }, [quoteData?.data])
   const buyAmount = useMemo(() => (sellAmount || 0) * (rate || 0), [rate, sellAmount])
@@ -239,10 +239,12 @@ const Home = () => {
           />
           <SwapButton
             sellCoin={sellCoin}
+            buyCoin={buyCoin}
             amount={Number(sellAmount)}
             quoteId={quoteId}
             disabled={!canSwap}
             balanceData={balanceData || []}
+            hasValidQuote={rate !== null}
             onSwapCompleted={() => {
               setSellAmount(0)
             }}
