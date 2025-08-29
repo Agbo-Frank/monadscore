@@ -25,6 +25,7 @@ const menuItems = [
 const Navbar = () => {
   const [scrolling, setScrolling] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null);
   const location = useLocation();
   const account = useActiveAccount();
 
@@ -36,16 +37,32 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Add click outside handler for dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (activeDropdown && !event.target.closest('.dropdown-container')) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeDropdown]);
+
   const isActiveLink = (link) => location.pathname === link;
 
   const renderMenuItem = (item) => {
     if (item.subItems) {
       return (
-        <div key={item.id} className="relative group">
-          <button className="px-4 py-2 text-white/70 hover:text-white focus:outline-none flex items-center space-x-2 transition-colors duration-200">
+        <div key={item.id} className="relative dropdown-container">
+          <button
+            className="px-4 py-2 text-white/70 hover:text-white focus:outline-none flex items-center space-x-2 transition-colors duration-200"
+            onClick={() => setActiveDropdown(activeDropdown === item.id ? null : item.id)}
+          >
             <span>{item.label}</span>
             <svg
-              className="w-4 h-4 text-white/50 group-hover:text-white transition-transform duration-200 group-hover:rotate-180"
+              className={`w-4 h-4 text-white/50 transition-transform duration-200 ${activeDropdown === item.id ? 'rotate-180' : ''
+                }`}
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -54,19 +71,22 @@ const Navbar = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path>
             </svg>
           </button>
-          <div className="absolute left-0 mt-2 w-48 bg-[#300034] border border-[#F675FF]/20 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 transform scale-95 group-hover:scale-100">
-            {item.subItems.map((subItem) => (
-              <a
-                key={subItem.id}
-                href={subItem.link}
-                className={`block px-4 py-3 text-white/80 hover:bg-[#620268] hover:text-white transition-all duration-200 flex items-center space-x-3 ${isActiveLink(subItem.link) ? "bg-[#620268] text-white font-medium" : ""
-                  }`}
-              >
-                {subItem.icon}
-                <span>{subItem.label}</span>
-              </a>
-            ))}
-          </div>
+          {activeDropdown === item.id && (
+            <div className="absolute left-0 mt-2 w-48 bg-[#300034] border border-[#F675FF]/20 rounded-lg shadow-xl z-50 transform scale-100 transition-all duration-200">
+              {item.subItems.map((subItem) => (
+                <a
+                  key={subItem.id}
+                  href={subItem.link}
+                  className={`block px-4 py-3 text-white/80 hover:bg-[#620268] hover:text-white transition-all duration-200 flex items-center space-x-3 ${isActiveLink(subItem.link) ? "bg-[#620268] text-white font-medium" : ""
+                    }`}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  {subItem.icon}
+                  <span>{subItem.label}</span>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
