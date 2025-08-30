@@ -55,7 +55,10 @@ const SwapButton = memo(function SwapButton({
     toast.loading('Waiting for transaction confirmation...', { id: toastId });
 
     setStatus('success');
+
     toast.success('Swap completed successfully!', { id: toastId });
+
+    onSwapCompleted();
     // Reset status after a delay
     setTimeout(async () => {
       setStatus('idle')
@@ -129,8 +132,6 @@ const SwapButton = memo(function SwapButton({
       }
 
       setTimeout(() => setStatus('idle'), 3000);
-    } finally {
-      onSwapCompleted();
     }
   };
 
