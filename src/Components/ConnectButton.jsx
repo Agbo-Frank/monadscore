@@ -1,7 +1,6 @@
-import { ConnectButton as ThirdWebButton, useActiveAccount, useProfiles } from "thirdweb/react";
+import { ConnectButton as ThirdWebButton } from "thirdweb/react";
 import { createWallet } from "thirdweb/wallets";
-import client from "../thirdweb/clients";
-import { monadTestnet } from "thirdweb/chains";
+import client, { chain } from "../thirdweb/clients";
 
 const defaultStyle = {
   height: '60px',
@@ -19,12 +18,12 @@ export default function ConnectButton(props) {
   return (
     <ThirdWebButton
       client={client}
-      chain={monadTestnet}
+      chain={chain}
       detailsModal={{ assetTabs: ["token"] }}
       detailsButton={{
 
         displayBalanceToken: {
-          [monadTestnet.id]: "0x0000000000000000000000000000000000000000",
+          [chain.id]: "0x0000000000000000000000000000000000000000",
         },
         style: {
           ...defaultStyle,

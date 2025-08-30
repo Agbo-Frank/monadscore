@@ -18,9 +18,7 @@ import endpoint from "../../Api/endpoint";
 import { TradeSection } from "../../Components";
 import useFetcher from "../../hooks/use-fetcher";
 import { SwapButton } from "../../Components";
-import RateImpactConfig from "../../Components/RateImpactConfig";
-import { monadTestnet } from "thirdweb/chains";
-import client from "../../thirdweb/clients";
+import client, { chain } from "../../thirdweb/clients";
 import BestRoute from "../../Components/BestRoute";
 import RateImpactConfigV2 from "../../Components/RateImpactConfigv2";
 
@@ -45,7 +43,7 @@ const Home = () => {
 
   const { data } = useWalletBalance({
     client,
-    chain: monadTestnet,
+    chain,
     address: account?.address
   })
 

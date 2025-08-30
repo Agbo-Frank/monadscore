@@ -6,9 +6,9 @@ import { cn, delay, isNativeCoin, compareString, isEmpty } from '../utils';
 import useFetcher from '../hooks/use-fetcher';
 import { toast } from 'sonner';
 import { maxUint256, } from 'thirdweb/utils';
-import { erc20Abi } from 'viem';
+import { erc20Abi, parseUnits } from 'viem';
 import { ethers } from "ethers"
-import { monadTestnet } from 'thirdweb/chains';
+import { chain } from '../thirdweb/clients';
 
 const SwapButton = memo(function SwapButton({
   sellCoin,
@@ -47,7 +47,7 @@ const SwapButton = memo(function SwapButton({
       to,
       value,
       data,
-      chainId: monadTestnet.id
+      chainId: chain.id
     });
 
     toast.loading('Waiting for transaction confirmation...', { id: toastId });
@@ -87,13 +87,12 @@ const SwapButton = memo(function SwapButton({
         }
 
 
-        const provider = new ethers.providers.JsonRpcProvider(monadTestnet.rpc);
+        const provider = new ethers.providers.JsonRpcProvider(chain.rpc);
         const contract = new ethers.Contract(sellCoin?.address, erc20Abi, provider);
         const allowanceResult = await contract.allowance(account?.address, to);
 
         const currentAllowance = ethers.BigNumber.from(allowanceResult);
-        const requiredAmount = ethers.BigNumber.from(amount * (10 ** sellCoin?.decimals));
-
+        const requiredAmount = ethers.BigNumber.from(parseUnits(amount.toString(), sellCoin?.decimals));
         if (currentAllowance.lt(requiredAmount)) {
           const approvalData = contract.interface.encodeFunctionData("approve", [to, maxUint256]);
 
@@ -103,7 +102,7 @@ const SwapButton = memo(function SwapButton({
             to: sellCoin?.address,
             value: 0,
             data: approvalData,
-            chainId: monadTestnet.id
+            chainId: chain.id
           });
 
           toast.loading('Transaction approved successfully...', { id: toastId });
