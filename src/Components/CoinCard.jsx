@@ -13,6 +13,7 @@ import {
 import useSWR from "swr";
 import endpoint from "../Api/endpoint";
 import { formatCurrency, isEmpty, truncateAddress } from "../utils";
+import { fetcher } from "../Api/fetcher";
 
 ChartJS.register(
   CategoryScale,
@@ -25,7 +26,13 @@ ChartJS.register(
 );
 
 const CoinCard = memo(function CoinCard({ coin }) {
-  const { data, isLoading } = useSWR(coin?.address ? `${endpoint.chart}/${coin?.address}` : null)
+  const { data, isLoading } = useSWR(
+    coin?.address ?
+      `${endpoint.chart}/${coin?.address}` :
+      null,
+    fetcher,
+    { revalidateOnFocus: false, errorRetryCount: 2 }
+  )
   const percentChange = data?.data?.change || 0
 
   const chartData = useMemo(() => {

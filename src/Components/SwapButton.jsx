@@ -2,12 +2,12 @@ import React, { useState, memo, useMemo } from 'react';
 import endpoint from '../Api/endpoint';
 import ConnectButton from './ConnectButton';
 import { useActiveAccount } from 'thirdweb/react';
-import { cn, delay, isNativeCoin, compareString } from '../utils';
+import { cn, delay, isNativeCoin, compareString, isEmpty } from '../utils';
 import useFetcher from '../hooks/use-fetcher';
 import { toast } from 'sonner';
-import { allowance, approve } from "thirdweb/extensions/erc20";
-import { getContract, sendTransaction } from 'thirdweb';
-import client from '../thirdweb/clients';
+import { maxUint256, } from 'thirdweb/utils';
+import { erc20Abi } from 'viem';
+import { ethers } from "ethers"
 import { monadTestnet } from 'thirdweb/chains';
 
 const SwapButton = memo(function SwapButton({
@@ -42,7 +42,14 @@ const SwapButton = memo(function SwapButton({
     return !amount || parseFloat(amount) <= 0;
   }, [amount]);
 
-  const onComplete = () => {
+  const complete = async ({ to, value, data }) => {
+    await account.sendTransaction({
+      to,
+      value,
+      data,
+      chainId: monadTestnet.id
+    });
+
     toast.loading('Waiting for transaction confirmation...', { id: toastId });
 
     setStatus('success');
@@ -67,65 +74,44 @@ const SwapButton = memo(function SwapButton({
       if (result?.data) {
         const { value, to, data } = result.data;
 
+        // Add validation for transaction parameters
+        if (isEmpty(to) || isEmpty(data)) {
+          throw new Error('Invalid transaction parameters received');
+        }
+
         toast.loading('Sending transaction to wallet...', { id: toastId });
 
         if (isNativeCoin(sellCoin?.address)) {
-          await account.sendTransaction({
-            to,
-            value,
-            data,
-            chainId: monadTestnet.id
-          });
-
-          onComplete()
+          await complete({ to, value, data })
           return;
         }
 
-        const contract = getContract({
-          client,
-          address: sellCoin?.address,
-          chain: monadTestnet,
-        });
 
-        const allowanceResult = await allowance({
-          contract,
-          owner: account?.address,
-          spender: to,
-        });
+        const provider = new ethers.providers.JsonRpcProvider(monadTestnet.rpc);
+        const contract = new ethers.Contract(sellCoin?.address, erc20Abi, provider);
+        const allowanceResult = await contract.allowance(account?.address, to);
 
-        const allowanceAmount = Number(allowanceResult) / (10 ** Number(sellCoin?.decimals))
-        if (allowanceAmount < amount) {
-          const approvalAmount = (amount * 1000) * (10 ** Number(sellCoin?.decimals))
+        const currentAllowance = ethers.BigNumber.from(allowanceResult);
+        const requiredAmount = ethers.BigNumber.from(amount * (10 ** sellCoin?.decimals));
+
+        if (currentAllowance.lt(requiredAmount)) {
+          const approvalData = contract.interface.encodeFunctionData("approve", [to, maxUint256]);
 
           toast.loading('Approving transaction...', { id: toastId });
 
-          const transaction = await approve({
-            contract,
-            spender: to,
-            amount: approvalAmount
-          })
-
-          await sendTransaction({
-            transaction,
-            account,
-            chain: monadTestnet
+          await account.sendTransaction({
+            to: sellCoin?.address,
+            value: 0,
+            data: approvalData,
+            chainId: monadTestnet.id
           });
 
           toast.loading('Transaction approved successfully...', { id: toastId });
 
-          await delay(5) // 5 seconds
-
-          toast.loading('Waiting for transaction confirmation...', { id: toastId });
+          await delay(5); // delay for 5 seconds
         }
 
-        await account.sendTransaction({
-          to,
-          value,
-          data,
-          chainId: monadTestnet.id
-        });
-
-        onComplete();
+        await complete({ to, value, data });
         return;
       }
     } catch (error) {
@@ -184,7 +170,7 @@ const SwapButton = memo(function SwapButton({
 
   const isDisabled = disabled ||
     hasEmptyAmount ||
-    hasInsufficientBalance ||
+    // hasInsufficientBalance ||
     !hasValidQuote ||
     status === 'pending'
 

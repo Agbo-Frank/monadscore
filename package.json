@@ -11,6 +11,7 @@
     "chart.js": "^4.5.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
+    "ethers": "^5.8.0",
     "express": "^5.1.0",
     "node-fetch": "^3.3.2",
     "numeral": "^2.0.6",
@@ -24,6 +25,7 @@
     "swr": "^2.3.6",
     "tailwind-merge": "^3.3.1",
     "thirdweb": "^5.105.37",
+    "view": "^1.1.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

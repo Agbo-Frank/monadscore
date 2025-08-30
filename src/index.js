@@ -9,7 +9,7 @@ import { SWRConfig } from 'swr';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <ThirdwebProvider>
+    <ThirdwebProvider >
       <SWRConfig value={{ fetcher }}>
         <App />
       </SWRConfig>
