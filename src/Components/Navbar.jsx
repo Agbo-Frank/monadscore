@@ -77,7 +77,7 @@ const Navbar = () => {
                 <a
                   key={subItem.id}
                   href={subItem.link}
-                  className={`block px-4 py-3 text-white/80 hover:bg-[#620268] hover:text-white transition-all duration-200 flex items-center space-x-3 ${isActiveLink(subItem.link) ? "bg-[#620268] text-white font-medium" : ""
+                  className={`px-4 py-3 text-white/80 hover:bg-[#620268] hover:text-white transition-all duration-200 flex items-center space-x-3 ${isActiveLink(subItem.link) ? "bg-[#620268] text-white font-medium" : ""
                     }`}
                   onClick={() => setActiveDropdown(null)}
                 >
@@ -185,7 +185,7 @@ const Navbar = () => {
                           key={subItem.id}
                           href={subItem.link}
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`block px-4 py-3 text-white/70 hover:text-white rounded-lg transition-colors duration-200 flex items-center space-x-3 ${isActiveLink(subItem.link) ? "bg-[#620268] text-white" : ""
+                          className={`px-4 py-3 text-white/70 hover:text-white rounded-lg transition-colors duration-200 flex items-center space-x-3 ${isActiveLink(subItem.link) ? "bg-[#620268] text-white" : ""
                             }`}
                         >
                           {subItem.icon}
