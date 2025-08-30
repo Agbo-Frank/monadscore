@@ -9,6 +9,7 @@ import { maxUint256, } from 'thirdweb/utils';
 import { erc20Abi, parseUnits } from 'viem';
 import { ethers } from "ethers"
 import { chain } from '../thirdweb/clients';
+import { mutate } from 'swr';
 
 const SwapButton = memo(function SwapButton({
   sellCoin,
@@ -50,13 +51,16 @@ const SwapButton = memo(function SwapButton({
       chainId: chain.id
     });
 
+    await mutate(`${endpoint.tokens}/${account?.address}`)
     toast.loading('Waiting for transaction confirmation...', { id: toastId });
 
     setStatus('success');
-
     toast.success('Swap completed successfully!', { id: toastId });
     // Reset status after a delay
-    setTimeout(() => setStatus('idle'), 3000);
+    setTimeout(async () => {
+      setStatus('idle')
+      await mutate(`${endpoint.tokens}/${account?.address}`)
+    }, 3000);
   }
 
   const handleInitiateSwap = async () => {
