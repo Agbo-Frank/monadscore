@@ -1,6 +1,6 @@
 import Axios from "axios";
 
-const baseURL = "https://7a2cd8b5df09.ngrok-free.app";
+const baseURL = "https://scoreapi-production.up.railway.app";
 
 const axios = Axios.create({
   baseURL,
