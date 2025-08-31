@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FaRotateRight } from "react-icons/fa6";
 import Loader from "./Loader";
-import { isEmpty } from "../utils";
+import { formatTokenBalance, isEmpty } from "../utils";
 
 export default function RateImpactConfigV2({
   buyCoin,
@@ -34,7 +34,7 @@ export default function RateImpactConfigV2({
             <div className="bg-gray-300 rounded-md h-3 w-20 animate-pulse" /> :
             <React.Fragment>
               <span>
-                Rate: 1 {displayFrom?.code} = {displayRatio !== null ? displayRatio.toFixed(6) : "..."}{" "}
+                Rate: 1 {displayFrom?.code} = {displayRatio !== null ? formatTokenBalance(displayRatio) : "..."}{" "}
                 {displayTo?.code}
               </span>
               <svg

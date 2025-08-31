@@ -40,6 +40,7 @@ const Home = () => {
   const [isSlippageOpen, setIsSlippageOpen] = useState(false);
   const [slippage, setSlippage] = useState(0.5);
   const [debouncedSellAmount, setDebouncedSellAmount] = useState(0);
+  const [quoteContext, setQuoteContext] = useState({ from: null, to: null });
 
   const { data } = useWalletBalance({
     client,
@@ -51,7 +52,15 @@ const Home = () => {
     account?.address ?
       `${endpoint.tokens}/${account?.address}` :
       endpoint.tokens,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      onSuccess(data) {
+        if (isEmpty(sellCoin?.address) || isEmpty(buyCoin?.address)) {
+          loadCoin(data?.data)
+        }
+      }
+    }
   )
 
   const { trigger: getQuote, data: quoteData, isMutating: loadingQuote } = useFetcher(endpoint.quote)
@@ -91,23 +100,28 @@ const Home = () => {
       ...quoteData?.data,
       rate: output_amount ? Number(output_amount) / Number(input_amount) : null
     }
-  }, [quoteData?.data])
-  const buyAmount = useMemo(() => (sellAmount || 0) * (rate || 0), [rate, sellAmount])
+  }, [quoteData?.data, sellCoin?.address, buyCoin?.address])
 
   // Validation for swap
   const canSwap = useMemo(() => {
     const enteredAmount = parseFloat(sellAmount);
     const returnedAmount = parseFloat(input_amount);
 
+    // Check if we have a valid quote that matches current coin selection
+    const hasValidQuote = quoteData?.data &&
+      compareString(quoteData?.data?.from, sellCoin?.address) &&
+      compareString(quoteData?.data?.to, buyCoin?.address) &&
+      enteredAmount === returnedAmount
+
     return (
       account?.address &&
       sellCoin?.address &&
       buyCoin?.address &&
       enteredAmount > 0 &&
-      enteredAmount === returnedAmount &&
-      quoteId
+      quoteId &&
+      hasValidQuote
     );
-  }, [account?.address, sellCoin?.address, buyCoin?.address, sellAmount, quoteId]);
+  }, [account?.address, sellCoin?.address, buyCoin?.address, sellAmount, quoteId, quoteData?.data]);
 
   const handleSelectCoin = (type = "sell") => {
     setActiveSelectorType(type);
@@ -142,26 +156,22 @@ const Home = () => {
   const handleSwap = () => {
     setSellCoin(buyCoin);
     setBuyCoin(sellCoin);
-    setSellAmount(buyAmount);
+    setSellAmount(""); // Reset sell amount when swapping coins
   };
 
-  const loadCoin = useCallback(() => {
+  const loadCoin = useCallback((tokens) => {
     if (isEmpty(tokens)) return;
 
-    if (isEmpty(buyCoin)) {
+    if (isEmpty(buyCoin?.address)) {
       const defaultBuyCoin = tokens.find(t => compareString(t.code, "usdc"))
       setBuyCoin(defaultBuyCoin)
     }
 
-    if (isEmpty(sellCoin)) {
+    if (isEmpty(sellCoin?.address)) {
       const defaultSellCoin = tokens.find(t => compareString(t.code, "mon"))
       setSellCoin(defaultSellCoin)
     }
   }, [tokens])
-
-  useEffect(() => {
-    loadCoin()
-  }, [loadCoin])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -254,9 +264,6 @@ const Home = () => {
             }}
           />
           <BestRoute
-            // rate={rate}
-            // sellCoin={sellCoin}
-            // buyCoin={buyCoin}
             impact={price_impact}
             networkFee={fee}
             maxSlippage={slippage} // added

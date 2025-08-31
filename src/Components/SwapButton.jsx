@@ -44,6 +44,8 @@ const SwapButton = memo(function SwapButton({
   }, [amount]);
 
   const complete = async ({ to, value, data }) => {
+    value = ethers.BigNumber.from(value.toString())
+
     await account.sendTransaction({
       to,
       value,
@@ -51,7 +53,6 @@ const SwapButton = memo(function SwapButton({
       chainId: chain.id
     });
 
-    await mutate(`${endpoint.tokens}/${account?.address}`)
     toast.loading('Waiting for transaction confirmation...', { id: toastId });
 
     setStatus('success');
@@ -121,6 +122,7 @@ const SwapButton = memo(function SwapButton({
         return;
       }
     } catch (error) {
+      console.log(error)
       setStatus('failed');
 
       if (error.message?.includes('user rejected')) {
