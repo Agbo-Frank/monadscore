@@ -1,33 +1,24 @@
 import React, { useMemo, useState } from "react";
 import { FaExchangeAlt, FaEye, FaEyeSlash, FaWallet, FaChevronDown } from "react-icons/fa";
 import networthImg from "../Assets/networth.png";
-import useSWR from "swr";
-import { useActiveAccount } from "thirdweb/react";
-import endpoint from "../Api/endpoint";
 import { formatCurrency, isEmpty } from "../utils";
 import { useNavigate } from "react-router-dom";
+import { useTokenBalances } from "../hooks/use-token-balances";
 
 const Portfolio = () => {
   const navigate = useNavigate()
-  const account = useActiveAccount()
 
-  const { data: tokenListData } = useSWR(
-    account?.address ?
-      `${endpoint.tokens}/${account?.address}` :
-      endpoint.tokens
-  )
-
-  const portfolio = useMemo(() => {
-    if (isEmpty(account?.address)) return [];
-
-    return tokenListData?.data?.filter(token => token.balance > 0)
-  }, [account?.address, tokenListData?.data])
+  const { balanceData: portfolio } = useTokenBalances({
+    autoRefresh: true,
+    refreshInterval: 30000,
+    watchBlocks: true
+  })
 
   const netWorth = useMemo(() => {
     if (isEmpty(portfolio)) return 0;
 
     return portfolio.reduce((acc, b) => acc + b.balance_usd, 0)
-  }, [portfolio, tokenListData?.data]);
+  }, [portfolio]);
 
   const [showNetWorth, setShowNetWorth] = useState(true);
   const [selectedTab, setSelectedTab] = useState("Yield Estimate");

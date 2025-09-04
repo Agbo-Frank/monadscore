@@ -72,12 +72,28 @@ export const truncateAddress = (address, startChars = 4, endChars = 4) => {
 export const delay = (seconds = 10) => new Promise(resolve => setTimeout(resolve, seconds * 1000));
 
 export const formatTokenBalance = (balance) => {
-  if (!balance) return 0;
-  const decimalPart = balance.toString().split('.')[1];
-  if (decimalPart && decimalPart.length > 6) {
-    return balance.toFixed(6);
+  if (!balance || balance === 0) return "0";
+
+  const numBalance = parseFloat(balance);
+  if (isNaN(numBalance)) return "0";
+
+  // Handle very small numbers that would display in scientific notation
+  if (numBalance === 0) return "0";
+
+  // For very small numbers (less than 0.000001), show as "< 0.000001"
+  if (numBalance > 0 && numBalance < 0.000001) {
+    return "< 0.000001";
   }
-  return balance;
+
+  // For negative very small numbers
+  if (numBalance < 0 && numBalance > -0.000001) {
+    return "> -0.000001";
+  }
+
+  // For numbers that can be displayed normally, format with up to 6 decimal places
+  // Remove trailing zeros
+  const formatted = numBalance.toFixed(6);
+  return parseFloat(formatted).toString();
 };
 
 
@@ -144,8 +160,11 @@ export const parseNumber = (value) => {
   return num;
 };
 
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+export const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+
 export const isNativeCoin = (address) => {
-  return address === "0x0000000000000000000000000000000000000000"
+  return address === ZERO_ADDRESS
 }
 
 export const isEthereumAddress = (str) => {

@@ -1,6 +1,5 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import "./App.css";
 import { FloatButton } from "antd";
 import { Navbar } from "./Components";
 import { Home, NoPage, Pools, Portfolio } from "./Pages";

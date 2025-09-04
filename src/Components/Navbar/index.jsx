@@ -1,33 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { logo } from "../Assets";
-import { FaWallet, FaExchangeAlt, FaSeedling, FaBriefcase, FaBook, FaDiscord, FaTwitter, FaBars, FaTimes } from "react-icons/fa";
+import { logo } from "../../Assets";
+import { FaBars, FaTimes } from "react-icons/fa";
 import ConnectButton from "./ConnectButton";
-import { useActiveAccount } from "thirdweb/react";
-import { truncateAddress } from "../utils";
-
-const menuItems = [
-  { id: 1, label: "Swap", link: "/", icon: <FaExchangeAlt size={20} /> },
-  { id: 2, label: "TG Trading Bot", link: "/tg-bot", icon: <FaSeedling size={20} /> },
-  { id: 3, label: "Portfolio", link: "/portfolio", icon: <FaBriefcase size={20} /> },
-  {
-    id: 4,
-    label: "More",
-    icon: <FaBook size={20} />,
-    subItems: [
-      { id: 1, label: "Documentation", link: "/docs", icon: <FaBook size={16} /> },
-      { id: 2, label: "Discord", link: "/discord", icon: <FaDiscord size={16} /> },
-      { id: 3, label: "X", link: "/x", icon: <FaTwitter size={16} /> },
-    ],
-  },
-];
+import menuItems from "./menuItems"
 
 const Navbar = () => {
   const [scrolling, setScrolling] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const location = useLocation();
-  const account = useActiveAccount();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -130,31 +112,7 @@ const Navbar = () => {
 
             {/* Desktop Connect Wallet */}
             <div className="hidden lg:flex items-center">
-              <ConnectButton
-                label={
-                  <div className="flex items-center space-x-2 bg-[#1C001E] hover:bg-[#2A002C] text-white px-6 py-3 rounded-lg border border-[#F675FF]/20 transition-all duration-200">
-                    <FaWallet className="size-4" />
-                    <span>Connect Wallet</span>
-                  </div>
-                }
-                style={{
-                  backgroundColor: 'transparent',
-                  color: 'white',
-                  padding: 0,
-                  margin: 0,
-                  height: "auto",
-                  borderRadius: '0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0'
-                }}
-                render={() => (
-                  <div className="flex items-center space-x-3 bg-[#1C001E] hover:bg-[#2A002C] text-white px-6 py-3 rounded-lg border border-[#F675FF]/20 transition-all duration-200">
-                    <FaWallet className="size-4" />
-                    <span className="font-medium">{truncateAddress(account.address)}</span>
-                  </div>
-                )}
-              />
+              <ConnectButton />
             </div>
 
             {/* Mobile Menu Button */}
@@ -208,32 +166,7 @@ const Navbar = () => {
 
               {/* Mobile Connect Wallet */}
               <div className="pt-4 border-t border-[#F675FF]/20">
-                <ConnectButton
-                  label={
-                    <div className="w-full bg-[#1C001E] hover:bg-[#2A002C] text-white px-6 py-3 rounded-lg border border-[#F675FF]/20 transition-all duration-200 text-center">
-                      <FaWallet className="size-4 inline mr-2" />
-                      <span>Connect Wallet</span>
-                    </div>
-                  }
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: 'white',
-                    padding: 0,
-                    margin: 0,
-                    height: "auto",
-                    borderRadius: '0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0',
-                    width: '100%'
-                  }}
-                  render={() => (
-                    <div className="w-full bg-[#1C001E] hover:bg-[#2A002C] text-white px-6 py-3 rounded-lg border border-[#F675FF]/20 transition-all duration-200 text-center">
-                      <FaWallet className="size-4 inline mr-2" />
-                      <span className="font-medium">{truncateAddress(account.address)}</span>
-                    </div>
-                  )}
-                />
+                <ConnectButton />
               </div>
             </div>
           </div>

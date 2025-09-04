@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { herobg } from "../../Assets";
 import {
   Chart as ChartJS,
@@ -11,16 +11,13 @@ import {
 import CoinCard from "../../Components/CoinCard";
 import CoinSelector from "../../Components/CoinSelector";
 import SlippageModal from "../../Components/SlippageModal";
-import { compareString, isEmpty, parseNumber, isNativeCoin } from "../../utils";
-import { useActiveAccount, useWalletBalance } from "thirdweb/react";
-import useSWR from "swr";
-import endpoint from "../../Api/endpoint";
+import { compareString, isEmpty } from "../../utils";
 import { TradeSection } from "../../Components";
-import useFetcher from "../../hooks/use-fetcher";
 import { SwapButton } from "../../Components";
-import client, { chain } from "../../thirdweb/clients";
 import BestRoute from "../../Components/BestRoute";
 import RateImpactConfigV2 from "../../Components/RateImpactConfigv2";
+import useTokenBalances from "../../hooks/use-token-balances";
+import useQuote from "../../hooks/use-quote";
 
 ChartJS.register(
   CategoryScale,
@@ -31,127 +28,31 @@ ChartJS.register(
 );
 
 const Home = () => {
-  const account = useActiveAccount()
-  const [sellCoin, setSellCoin] = useState(null);
-  const [buyCoin, setBuyCoin] = useState(null);
   const [sellAmount, setSellAmount] = useState("");
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [activeSelectorType, setActiveSelectorType] = useState(null); // "sell" or "buy"
   const [isSlippageOpen, setIsSlippageOpen] = useState(false);
   const [slippage, setSlippage] = useState(0.5);
-  const [debouncedSellAmount, setDebouncedSellAmount] = useState(0);
-  const [quoteContext, setQuoteContext] = useState({ from: null, to: null });
 
-  const { data } = useWalletBalance({
-    client,
-    chain,
-    address: account?.address
-  })
+  const { tokens, address, balanceData, refreshBalances } = useTokenBalances()
+  const {
+    sellCoin,
+    setSellCoin,
+    buyCoin,
+    setBuyCoin,
+    loadCoin,
+    canSwap,
+    handleGetQuote,
+    loadingQuote,
+    quoteData
+  } = useQuote({ address, slippage, sellAmount })
 
-  const { data: tokenData } = useSWR(
-    account?.address ?
-      `${endpoint.tokens}/${account?.address}` :
-      endpoint.tokens,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      onSuccess(data) {
-        if (isEmpty(sellCoin?.address) || isEmpty(buyCoin?.address)) {
-          loadCoin(data?.data)
-        }
-      }
-    }
-  )
-
-  const { trigger: getQuote, data: quoteData, isMutating: loadingQuote } = useFetcher(endpoint.quote)
-
-  const tokens = useMemo(() => {
-    if (!tokenData?.data || !data?.displayValue) return tokenData?.data || [];
-
-    return tokenData?.data?.map(token => {
-      if (isNativeCoin(token.address)) {
-        return {
-          ...token,
-          balance: Number(data.displayValue),
-          balance_usd: (Number(data.displayValue) * (token.price || 0)).toFixed(2)
-        };
-      }
-      return token;
-    });
-  }, [tokenData?.data, data?.displayValue]);
-
-  const balanceData = useMemo(() => {
-    return tokens?.filter(t => t.balance > 0)
-  }, [tokens])
-
-  const { rate, platform, fee, price_impact, quoteId, input_amount } = useMemo(() => {
-    if (isEmpty(quoteData?.data)) {
-      return {
-        rate: 0,
-        fee: 0,
-        platform: null,
-        price_impact: 0,
-        quoteId: null,
-        input_amount: 0
-      }
-    }
-    const { output_amount, input_amount } = quoteData?.data
-    return {
-      ...quoteData?.data,
-      rate: output_amount ? Number(output_amount) / Number(input_amount) : null
-    }
-  }, [quoteData?.data, sellCoin?.address, buyCoin?.address])
-
-  // Validation for swap
-  const canSwap = useMemo(() => {
-    const enteredAmount = parseFloat(sellAmount);
-    const returnedAmount = parseFloat(input_amount);
-
-    // Check if we have a valid quote that matches current coin selection
-    const hasValidQuote = quoteData?.data &&
-      compareString(quoteData?.data?.from, sellCoin?.address) &&
-      compareString(quoteData?.data?.to, buyCoin?.address) &&
-      enteredAmount === returnedAmount
-
-    return (
-      account?.address &&
-      sellCoin?.address &&
-      buyCoin?.address &&
-      enteredAmount > 0 &&
-      quoteId &&
-      hasValidQuote
-    );
-  }, [account?.address, sellCoin?.address, buyCoin?.address, sellAmount, quoteId, quoteData?.data]);
+  const { rate, platform, fee, price_impact, quoteId } = quoteData
 
   const handleSelectCoin = (type = "sell") => {
     setActiveSelectorType(type);
     setIsSelectorOpen(true);
   }
-
-  const handleGetQuote = useCallback(async () => {
-    const amount = parseNumber(debouncedSellAmount);
-    if (
-      isEmpty(sellCoin?.address) ||
-      isEmpty(buyCoin?.address)
-    ) return;
-
-    await getQuote({
-      amount: amount ? amount : 1,
-      from: sellCoin.address,
-      slippage,
-      to: buyCoin.address
-    });
-  }, [debouncedSellAmount, slippage, sellCoin?.address, buyCoin?.address, getQuote]);
-
-  useEffect(() => {
-    if (sellCoin && buyCoin) {
-      const timeoutId = setTimeout(() => {
-        handleGetQuote();
-      }, 1000); // 1 second delay
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [debouncedSellAmount, slippage, buyCoin?.address, sellCoin?.address]);
 
   const handleSwap = () => {
     setSellCoin(buyCoin);
@@ -159,27 +60,11 @@ const Home = () => {
     setSellAmount(""); // Reset sell amount when swapping coins
   };
 
-  const loadCoin = useCallback((tokens) => {
-    if (isEmpty(tokens)) return;
-
-    if (isEmpty(buyCoin?.address)) {
-      const defaultBuyCoin = tokens.find(t => compareString(t.code, "usdc"))
-      setBuyCoin(defaultBuyCoin)
-    }
-
-    if (isEmpty(sellCoin?.address)) {
-      const defaultSellCoin = tokens.find(t => compareString(t.code, "mon"))
-      setSellCoin(defaultSellCoin)
+  useEffect(() => {
+    if (isEmpty(sellCoin?.address) || isEmpty(buyCoin?.address)) {
+      loadCoin(tokens)
     }
   }, [tokens])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSellAmount(sellAmount);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [sellAmount]);
 
   return (
     <div className="w-full h-full">
@@ -260,7 +145,9 @@ const Home = () => {
             balanceData={balanceData || []}
             hasValidQuote={rate !== null}
             onSwapCompleted={() => {
+              console.log("Completed successfully")
               setSellAmount(0)
+              refreshBalances()
             }}
           />
           <BestRoute

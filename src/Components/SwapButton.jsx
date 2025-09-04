@@ -1,15 +1,16 @@
 import React, { useState, memo, useMemo } from 'react';
 import endpoint from '../Api/endpoint';
-import ConnectButton from './ConnectButton';
-import { useActiveAccount } from 'thirdweb/react';
 import { cn, delay, isNativeCoin, compareString, isEmpty } from '../utils';
 import useFetcher from '../hooks/use-fetcher';
 import { toast } from 'sonner';
-import { maxUint256, } from 'thirdweb/utils';
-import { erc20Abi, parseUnits } from 'viem';
+import { erc20Abi, maxUint256, parseUnits } from 'viem';
 import { ethers } from "ethers"
-import { chain } from '../thirdweb/clients';
-import { mutate } from 'swr';
+import { constructApproveTransaction } from '../utils/helpers/approve';
+import { useAccount } from "wagmi";
+import { useModal } from "connectkit";
+import buildTransactionRequest from '../utils/helpers/txConfig';
+import useEthersSigner from '../hooks/use-ethers-signer';
+import { extractErrorMessage } from '../utils/helpers';
 
 const SwapButton = memo(function SwapButton({
   sellCoin,
@@ -22,9 +23,11 @@ const SwapButton = memo(function SwapButton({
   hasValidQuote = true  // Add prop to check if quote is valid
 }) {
   const toastId = "swap"
-  const account = useActiveAccount()
   const [status, setStatus] = useState('idle');
   const { trigger: initiateSwap, isMutating: swapping } = useFetcher(endpoint.route)
+  const { setOpen } = useModal()
+  const { address, isConnecting, isDisconnected } = useAccount();
+  const signer = useEthersSigner()
 
   // Check for insufficient balance or invalid amount
   const hasInsufficientBalance = useMemo(() => {
@@ -43,28 +46,28 @@ const SwapButton = memo(function SwapButton({
     return !amount || parseFloat(amount) <= 0;
   }, [amount]);
 
-  const complete = async ({ to, value, data }) => {
+  const complete = async ({ to, value, data, txOptions }) => {
     value = ethers.BigNumber.from(value.toString())
 
-    await account.sendTransaction({
+    const tx = await buildTransactionRequest({
       to,
       value,
+      signer,
       data,
-      chainId: chain.id
-    });
+      txOptions
+    })
+
+    const transaction = await signer.sendTransaction(tx)
 
     toast.loading('Waiting for transaction confirmation...', { id: toastId });
 
+    await transaction.wait(1);
+
     setStatus('success');
-
     toast.success('Swap completed successfully!', { id: toastId });
+    onSwapCompleted()
 
-    onSwapCompleted();
-    // Reset status after a delay
-    setTimeout(async () => {
-      setStatus('idle')
-      await mutate(`${endpoint.tokens}/${account?.address}`)
-    }, 3000);
+    setTimeout(async () => setStatus('idle'), 3000);
   }
 
   const handleInitiateSwap = async () => {
@@ -74,8 +77,12 @@ const SwapButton = memo(function SwapButton({
       setStatus('pending');
       toast.loading('Preparing swap transaction...', { id: toastId });
 
+      if (!signer) {
+        throw new Error('Wallet connection issue detected. If you\'re already connected, try refreshing the page.');
+      }
+
       const result = await initiateSwap({
-        sender: account?.address,
+        sender: address,
         quote_id: quoteId,
       });
 
@@ -90,47 +97,64 @@ const SwapButton = memo(function SwapButton({
         toast.loading('Sending transaction to wallet...', { id: toastId });
 
         if (isNativeCoin(sellCoin?.address)) {
-          await complete({ to, value, data })
+          await complete({
+            to,
+            value,
+            data,
+            txOptions: { gasLimit: 310000 }
+          })
           return;
         }
 
+        const tokenContract = new ethers.Contract(sellCoin?.address, erc20Abi, signer);
 
-        const provider = new ethers.providers.JsonRpcProvider(chain.rpc);
-        const contract = new ethers.Contract(sellCoin?.address, erc20Abi, provider);
-        const allowanceResult = await contract.allowance(account?.address, to);
-
-        const currentAllowance = ethers.BigNumber.from(allowanceResult);
+        const allowance = await tokenContract.allowance(address, to);
         const requiredAmount = ethers.BigNumber.from(parseUnits(amount.toString(), sellCoin?.decimals));
-        if (currentAllowance.lt(requiredAmount)) {
-          const approvalData = contract.interface.encodeFunctionData("approve", [to, maxUint256]);
 
+        if (allowance.lt(requiredAmount)) {
           toast.loading('Approving transaction...', { id: toastId });
 
-          await account.sendTransaction({
-            to: sellCoin?.address,
-            value: 0,
-            data: approvalData,
-            chainId: chain.id
-          });
+          const tx = await constructApproveTransaction(
+            signer,
+            sellCoin?.address,
+            to,
+            maxUint256,
+          );
+
+          const transaction = await signer.sendTransaction(tx);
+          await transaction.wait(1);
 
           toast.loading('Transaction approved successfully...', { id: toastId });
 
           await delay(5); // delay for 5 seconds
         }
 
-        await complete({ to, value, data });
+        await complete({
+          to,
+          value,
+          data,
+          txOptions: { gasLimit: 400000 }
+        })
         return;
       }
     } catch (error) {
-      console.log(error)
+      const errorObj = extractErrorMessage(error)
+
       setStatus('failed');
 
-      if (error.message?.includes('user rejected')) {
-        toast.error('Transaction was cancelled by user', { id: toastId });
-      } else if (error.message?.includes('insufficient funds')) {
-        toast.error('Insufficient funds for this transaction', { id: toastId });
+      if (errorObj.message === "transaction failed") {
+        toast.error(
+          "Transaction failed. This could be due to low slippage tolerance, insufficient gas, or price movement. Try adjusting your slippage settings.",
+          { id: toastId }
+        );
       } else {
-        toast.error('Swap failed. Please try again.', { id: toastId });
+        toast.error(
+          errorObj?.message ||
+          error?.message ||
+          'Swap failed. Please try again.'
+          ,
+          { id: toastId }
+        );
       }
 
       setTimeout(() => setStatus('idle'), 3000);
@@ -176,11 +200,20 @@ const SwapButton = memo(function SwapButton({
 
   const isDisabled = disabled ||
     hasEmptyAmount ||
-    // hasInsufficientBalance ||
+    hasInsufficientBalance ||
     !hasValidQuote ||
     status === 'pending'
 
-  if (!account) return <ConnectButton />
+  if (!address || isDisconnected) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="h-[60px] w-full rounded-[15px] bg-[#F675FF] border border-[#300034] text-[#300034] mt-4 max-w-full mx-auto"
+      >
+        {isConnecting ? "Connecting..." : "Connect Wallet"}
+      </button>
+    )
+  }
   return (
     <button
       onClick={handleInitiateSwap}

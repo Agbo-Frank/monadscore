@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { cleanNumber, parseNumber } from "../utils";
+import { cleanNumber, isEmpty, parseNumber } from "../utils";
 
 /**
  * SlippageModal component for adjusting slippage tolerance.
@@ -31,14 +31,14 @@ function SlippageModal({ isOpen, onClose, onSelectSlippage, currentSlippage }) {
   if (!isOpen) return null;
 
   const handlePresetClick = (value) => {
-    onSelectSlippage(value);
+    onSelectSlippage(value || currentSlippage || 0.5);
     setCustomValue("");
     onClose()
   };
 
   const handleCustomChange = (e) => {
     const val = e.target.value;
-    setCustomValue(cleanNumber(val))
+    setCustomValue(val)
   };
 
   return (

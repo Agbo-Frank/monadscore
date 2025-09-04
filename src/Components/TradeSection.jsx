@@ -1,4 +1,4 @@
-import { useMemo, memo, Children } from "react";
+import { useMemo, memo } from "react";
 import { FaWallet } from "react-icons/fa";
 import { cleanNumber, compareString, formatCurrency, formatTokenBalance, isEmpty } from "../utils";
 import numeral from "numeral";
@@ -12,20 +12,15 @@ const TradeSection = memo(function TradeSection({
   balance = [],
   children = null
 }) {
+  // Get the specific token balance for this coin
   const tokenBalance = useMemo(() => {
-    if (isEmpty(balance)) return {
-      balance: 0,
-      balance_usd: 0
-    };
-    const _tokenBalance = balance.find(b => compareString(b.address, coin?.address))
-    if (isEmpty(_tokenBalance)) {
-      return {
-        balance: 0,
-        balance_usd: 0
-      };
+    const defaultBalance = { balance: 0, balance_usd: 0 }
+    if (!coin?.address) {
+      return defaultBalance;
     }
-    return _tokenBalance;
-  }, [type, coin, balance])
+
+    return balance.find(b => compareString(b.address, coin?.address));
+  }, [coin?.address, balance]);
 
   let approxValue = useMemo(() => {
     if (isEmpty(amount) || isEmpty(coin?.price)) return 0;
@@ -33,13 +28,6 @@ const TradeSection = memo(function TradeSection({
   }, [amount, coin?.price]);
 
   const isSell = type === "sell";
-
-  // Check if amount exceeds balance for sell orders
-  const hasInsufficientBalance = useMemo(() => {
-    if (!isSell || isEmpty(amount)) return false;
-    if (isEmpty(tokenBalance?.balance)) return true;
-    return parseFloat(amount) > parseFloat(tokenBalance.balance);
-  }, [isSell, amount, tokenBalance?.balance]);
 
   const handleAmountChange = (value) => {
     const formattedValue = cleanNumber(value);

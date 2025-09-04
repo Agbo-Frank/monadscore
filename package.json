@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@tanstack/react-query": "^5.85.6",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -10,6 +11,7 @@
     "axios": "^1.11.0",
     "chart.js": "^4.5.0",
     "clsx": "^2.1.1",
+    "connectkit": "^1.9.1",
     "cors": "^2.8.5",
     "ethers": "^5.8.0",
     "express": "^5.1.0",
@@ -26,6 +28,7 @@
     "tailwind-merge": "^3.3.1",
     "thirdweb": "^5.105.37",
     "view": "^1.1.1",
+    "wagmi": "^2.16.9",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
