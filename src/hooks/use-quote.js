@@ -50,7 +50,6 @@ export default function useQuote({ address, slippage, sellAmount }) {
     );
   }, [
     address,
-    price_impact,
     sellCoin?.address,
     buyCoin?.address,
     sellAmount,
