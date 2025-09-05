@@ -145,7 +145,6 @@ const Home = () => {
             balanceData={balanceData || []}
             hasValidQuote={rate !== null}
             onSwapCompleted={() => {
-              console.log("Completed successfully")
               setSellAmount(0)
               refreshBalances()
             }}

@@ -33,11 +33,17 @@ export default function useQuote({ address, slippage, sellAmount }) {
     const enteredAmount = parseFloat(sellAmount);
     const returnedAmount = parseFloat(input_amount);
 
+    console.log("from", compareString(quoteData?.data?.from, sellCoin?.address))
+    console.log("to", compareString(quoteData?.data?.to, buyCoin?.address))
+    console.log("amount", enteredAmount === returnedAmount)
+    console.log("slippage", slippage === returnedSlippage)
+
+    const amountsMatch = Math.abs(enteredAmount - returnedAmount) < 0.000001;
     // Check if we have a valid quote that matches current coin selection
     const hasValidQuote = quoteData?.data &&
       compareString(quoteData?.data?.from, sellCoin?.address) &&
       compareString(quoteData?.data?.to, buyCoin?.address) &&
-      enteredAmount === returnedAmount &&
+      amountsMatch &&
       slippage === returnedSlippage
 
     return (
@@ -58,6 +64,8 @@ export default function useQuote({ address, slippage, sellAmount }) {
     slippage,
     returnedSlippage
   ]);
+
+  console.log(canSwap)
 
   const loadCoin = useCallback((tokens) => {
     if (isEmpty(tokens)) return;
