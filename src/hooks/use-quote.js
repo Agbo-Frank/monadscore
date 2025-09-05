@@ -45,7 +45,6 @@ export default function useQuote({ address, slippage, sellAmount }) {
       sellCoin?.address &&
       buyCoin?.address &&
       enteredAmount > 0 &&
-      price_impact < 0.1 &&
       quoteId &&
       hasValidQuote
     );
