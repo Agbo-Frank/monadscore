@@ -15,7 +15,7 @@ import { compareString, isEmpty } from "../../utils";
 import { TradeSection } from "../../Components";
 import { SwapButton } from "../../Components";
 import BestRoute from "../../Components/BestRoute";
-import RateImpactConfigV2 from "../../Components/RateImpactConfigv2";
+import RateImpactConfig from "../../Components/RateImpactConfig";
 import useTokenBalances from "../../hooks/use-token-balances";
 import useQuote from "../../hooks/use-quote";
 
@@ -121,7 +121,7 @@ const Home = () => {
             coin={buyCoin}
             balance={balanceData || []}
           >
-            <RateImpactConfigV2
+            <RateImpactConfig
               {
               ...{
                 sellCoin,

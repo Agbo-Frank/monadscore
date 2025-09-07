@@ -193,6 +193,10 @@ const SwapButton = memo(function SwapButton({
       return "Enter an amount";
     } else if (hasInsufficientBalance) {
       return `Insufficient ${sellCoin?.code || "Balance"}`;
+    } else if (compareString(sellCoin?.code, "mon") && compareString(buyCoin?.code, "wmon")) {
+      return "Wrap"
+    } else if (compareString(sellCoin?.code, "wmon") && compareString(buyCoin?.code, "mon")) {
+      return "Unwrap"
     } else {
       return "Swap";
     }
