@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { cleanNumber, isEmpty, parseNumber } from "../utils";
+import { parseNumber } from "../utils";
 
 /**
  * SlippageModal component for adjusting slippage tolerance.

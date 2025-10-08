@@ -57,7 +57,7 @@ const CoinCard = memo(function CoinCard({ coin }) {
         },
       ],
     }
-  }, [data?.data?.prices, coin])
+  }, [data?.data?.prices, coin, percentChange])
 
   const bgColor =
     percentChange === null
@@ -103,7 +103,7 @@ const CoinCard = memo(function CoinCard({ coin }) {
               {
                 isLoading ?
                   <div className="bg-gray-200 rounded-md h-3 w-12" /> :
-                  formatCurrency(data?.data?.price)
+                  formatCurrency(data?.data?.price, "$")
               }
             </div>
           </div>

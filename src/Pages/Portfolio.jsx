@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { FaExchangeAlt, FaEye, FaEyeSlash, FaWallet, FaChevronDown } from "react-icons/fa";
 import networthImg from "../Assets/networth.png";
-import { formatCurrency, isEmpty } from "../utils";
+import { formatCurrency, formatTokenBalance, isEmpty } from "../utils";
 import { useNavigate } from "react-router-dom";
 import { useTokenBalances } from "../hooks/use-token-balances";
 
@@ -167,7 +167,7 @@ const Portfolio = () => {
                       <div className="text-xs text-gray-400">{item?.name}</div>
                     </td>
                     <td className="py-2 px-4 truncate max-w-[120px]">
-                      {item.balance.toFixed(6)}
+                      {formatTokenBalance(item.balance)}
                     </td>
                     <td className="py-2 px-4 truncate max-w-[120px]">
                       <div>{formatCurrency(item.price)}</div>

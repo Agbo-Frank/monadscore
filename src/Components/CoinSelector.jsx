@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { formatCurrency, formatTokenBalance, isEmpty, isEthereumAddress } from '../utils';
 import useSWR from 'swr';
 import endpoint from '../Api/endpoint';
@@ -39,7 +39,7 @@ const CoinSelector = ({
   const [externalToken, setExternalToken] = useState(null);
   const [shouldSearchExternal, setShouldSearchExternal] = useState(false);
 
-  const { isLoading, data, error } = useSWR(
+  const { isLoading, data } = useSWR(
     shouldSearchExternal && externalToken ?
       `${endpoint.token}/${externalToken}` :
       null
@@ -95,10 +95,10 @@ const CoinSelector = ({
         <div className="p-3 border-b border-gray-200 flex justify-between items-center">
           <input
             type="text"
-            placeholder="Search by code, name, or contract address"
+            placeholder="Search by code or address"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-3 py-2 text-base rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="!outline-none flex-1 px-3 py-2 text-base rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F675FF]/40 focus:border-transparent"
             autoFocus
           />
           <button

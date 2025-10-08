@@ -12,7 +12,7 @@ export const useTokenBalances = (options = {}) => {
     refreshInterval = 30000
   } = options;
 
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, isReconnecting } = useAccount();
 
   // Get native token balance using wagmi
   const { data: nativeBalance, refetch: refetchNativeBalance } = useBalance({
@@ -82,10 +82,13 @@ export const useTokenBalances = (options = {}) => {
   }, [address, refetchNativeBalance, refetchContracts]);
 
   // Create a map for faster token lookup
-  const tokenAddressMap = new Map();
-  erc20Tokens.forEach((token, index) => {
-    tokenAddressMap.set(token.address.toLowerCase(), index);
-  });
+  const tokenAddressMap = useMemo(() => {
+    const map = new Map();
+    erc20Tokens.forEach((token, index) => {
+      map.set(token.address.toLowerCase(), index);
+    });
+    return map;
+  }, [erc20Tokens]);
 
   // Process tokens with native balance and contract balances included
   const tokens = useMemo(() => {
@@ -138,6 +141,7 @@ export const useTokenBalances = (options = {}) => {
     });
   }, [
     tokenData?.data,
+    nativeBalance?.decimals,
     nativeBalance?.value,
     contractResults,
     tokenAddressMap,
@@ -155,6 +159,7 @@ export const useTokenBalances = (options = {}) => {
 
     // State
     isConnected,
+    isReconnecting,
     address,
 
     // Functions
