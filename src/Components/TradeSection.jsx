@@ -14,8 +14,8 @@ const TradeSection = memo(forwardRef(function TradeSection({
   children = null
 }, ref) {
   // Get the specific token balance for this coin using RPC
-  const { 
-    balance: rpcBalance, 
+  const {
+    balance: rpcBalance,
     decimals: tokenDecimals,
     refetch: refetchBalance
   } = useTokenBalance(coin?.address, {
@@ -70,20 +70,20 @@ const TradeSection = memo(forwardRef(function TradeSection({
   // Format amount based on token decimals
   const formatAmountByDecimals = (value, decimals) => {
     if (!value || value === 0) return "0";
-    
+
     const numValue = parseFloat(value);
     if (isNaN(numValue) || numValue === 0) return "0";
-    
+
     // For very small numbers (less than 0.000001), show as "< 0.000001"
     if (numValue > 0 && numValue < 0.000001) {
       return "0.00";
     }
-    
+
     // For negative very small numbers
     if (numValue < 0 && numValue > -0.000001) {
       return "0.00";
     }
-    
+
     // For tokens with fewer decimals, show fewer decimal places
     let decimalPlaces = 6; // default
     if (decimals && decimals <= 6) {
@@ -93,22 +93,22 @@ const TradeSection = memo(forwardRef(function TradeSection({
     } else {
       decimalPlaces = 8;
     }
-    
+
     // For very small numbers, show more precision
     if (numValue > 0 && numValue < 0.000001) {
       decimalPlaces = Math.max(decimalPlaces, 8);
     }
-    
+
     const formatted = numValue.toFixed(decimalPlaces);
     const result = parseFloat(formatted);
-    
+
     // Check if the result would be in scientific notation when converted to string
     const resultStr = result.toString();
     if (resultStr.includes('e') || resultStr.includes('E')) {
       // If it would be scientific notation, use toFixed with appropriate decimal places
       return numValue.toFixed(Math.max(8, decimalPlaces));
     }
-    
+
     return resultStr;
   };
 
