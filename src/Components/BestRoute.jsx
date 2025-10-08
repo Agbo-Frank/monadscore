@@ -11,10 +11,12 @@ const BestRoute = ({ impact, networkFee, dexName, maxSlippage }) => {
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex items-center gap-2">
-          <span>{dexName}</span>
-          <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded">
-            Best Route
-          </span>
+          <span>{dexName || "No Best Route"}</span>
+          {dexName && (
+            <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded">
+              Best Route
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <svg

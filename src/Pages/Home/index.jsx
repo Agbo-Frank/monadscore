@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { herobg } from "../../Assets";
 import {
   Chart as ChartJS,
@@ -11,7 +11,7 @@ import {
 import CoinCard from "../../Components/CoinCard";
 import CoinSelector from "../../Components/CoinSelector";
 import SlippageModal from "../../Components/SlippageModal";
-import { compareString, isEmpty } from "../../utils";
+import { compareString, isEmpty, storage } from "../../utils";
 import { TradeSection } from "../../Components";
 import { SwapButton } from "../../Components";
 import BestRoute from "../../Components/BestRoute";
@@ -28,11 +28,16 @@ ChartJS.register(
 );
 
 const Home = () => {
-  const [sellAmount, setSellAmount] = useState("");
+  // Initialize state from localStorage
+  const [sellAmount, setSellAmount] = useState(() => storage.getSellAmount());
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [activeSelectorType, setActiveSelectorType] = useState(null); // "sell" or "buy"
   const [isSlippageOpen, setIsSlippageOpen] = useState(false);
-  const [slippage, setSlippage] = useState(0.5);
+  const [slippage, setSlippage] = useState(() => storage.getSlippage());
+
+  // Refs for TradeSection components to access their balance refresh functions
+  const sellTradeSectionRef = useRef(null);
+  const buyTradeSectionRef = useRef(null);
 
   const { tokens, address, balanceData, refreshBalances } = useTokenBalances()
   const {
@@ -49,27 +54,39 @@ const Home = () => {
 
   const { rate, platform, fee, price_impact, quoteId } = quoteData
 
+  // Wrapper functions to persist state changes
+  const handleSellAmountChange = (amount) => {
+    setSellAmount(amount);
+    storage.setSellAmount(amount);
+  };
+
+  const handleSlippageChange = (newSlippage) => {
+    setSlippage(newSlippage);
+    storage.setSlippage(newSlippage);
+  };
+
   const handleSelectCoin = (type = "sell") => {
     setActiveSelectorType(type);
     setIsSelectorOpen(true);
   }
 
   const handleSwap = () => {
+    // Swap coins (persistence is handled in the hook)
     setSellCoin(buyCoin);
     setBuyCoin(sellCoin);
-    setSellAmount(""); // Reset sell amount when swapping coins
+    handleSellAmountChange(""); // Reset sell amount when swapping coins
   };
 
   useEffect(() => {
     if (isEmpty(sellCoin?.address) || isEmpty(buyCoin?.address)) {
       loadCoin(tokens)
     }
-  }, [tokens])
+  }, [tokens, sellCoin?.address, buyCoin?.address, loadCoin])
 
   return (
     <div className="w-full h-full">
       {/* Hero Section */}
-      <section className="w-full relative py-20 sm:py-32 min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden">
+      <section className="w-full relative py-20 sm:py-24 min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden">
         {/* Image Background */}
         <img
           src={herobg}
@@ -80,9 +97,10 @@ const Home = () => {
         {/* Dex Content */}
         <div className="relative z-10 bg-white/10 backdrop-blur-md p-6 rounded-2xl max-w-full sm:max-w-xl md:max-w-2xl w-full mx-auto">
           <TradeSection
+            ref={sellTradeSectionRef}
             type="sell"
             amount={sellAmount}
-            onAmountChange={setSellAmount}
+            onAmountChange={handleSellAmountChange}
             onSelect={() => handleSelectCoin()}
             balance={balanceData || []}
             coin={sellCoin}
@@ -114,12 +132,13 @@ const Home = () => {
           </div>
 
           <TradeSection
+            ref={buyTradeSectionRef}
             type="buy"
             amount={(sellAmount || 0) * (rate || 0)}
             onAmountChange={() => { }}
             onSelect={() => handleSelectCoin("buy")}
-            coin={buyCoin}
             balance={balanceData || []}
+            coin={buyCoin}
           >
             <RateImpactConfig
               {
@@ -128,7 +147,7 @@ const Home = () => {
                 buyCoin,
                 rate,
                 isLoading: loadingQuote,
-                onRefreshRate: handleGetQuote,
+                onRefreshRate: () => handleGetQuote(true),
                 tiggerSlippageConfig: () => setIsSlippageOpen(true)
               }
               }
@@ -139,14 +158,45 @@ const Home = () => {
           <SwapButton
             sellCoin={sellCoin}
             buyCoin={buyCoin}
-            amount={Number(sellAmount)}
+            amount={sellAmount}
             quoteId={quoteId}
             disabled={!canSwap}
             balanceData={balanceData || []}
             hasValidQuote={rate !== null}
-            onSwapCompleted={() => {
-              setSellAmount(0)
-              refreshBalances()
+            isLoadingQuote={loadingQuote}
+            onSwapCompleted={async () => {
+              handleSellAmountChange("")
+              
+              // Refresh both individual token balances (RPC data) and general balance data (API data)
+              const maxRetries = 3;
+              for (let i = 0; i < maxRetries; i++) {
+                try {
+                  // Refresh individual token balances for both sell and buy tokens
+                  const refreshPromises = [
+                    refreshBalances(), // General balance data refresh
+                  ];
+                  
+                  // Add individual token balance refreshes if refs are available
+                  if (sellTradeSectionRef.current?.refreshBalance) {
+                    refreshPromises.push(sellTradeSectionRef.current.refreshBalance());
+                  }
+                  if (buyTradeSectionRef.current?.refreshBalance) {
+                    refreshPromises.push(buyTradeSectionRef.current.refreshBalance());
+                  }
+                  
+                  // Execute all refreshes in parallel
+                  await Promise.all(refreshPromises);
+                  console.log('✅ Token balances refreshed successfully after swap');
+                  break; // Success, exit retry loop
+                } catch (error) {
+                  console.warn(`Balance refresh attempt ${i + 1} failed:`, error);
+                  
+                  // Wait before retrying
+                  if (i < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                  }
+                }
+              }
             }}
           />
           <BestRoute
@@ -186,7 +236,7 @@ const Home = () => {
           isOpen={isSlippageOpen}
           onClose={() => setIsSlippageOpen(false)}
           currentSlippage={slippage}
-          onSelectSlippage={setSlippage}
+          onSelectSlippage={handleSlippageChange}
         />
       </section>
     </div>

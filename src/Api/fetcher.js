@@ -1,6 +1,6 @@
 import Axios from "axios";
 
-const baseURL = "https://scorerapi-production-3c40.up.railway.app";
+const baseURL = "https://scorerapi-production.up.railway.app";
 
 const axios = Axios.create({
   baseURL,
@@ -36,9 +36,9 @@ const handleRequest = async (method, url, body) => {
     if (Axios.isAxiosError(error)) {
       const axiosError = error;
       message = axiosError.response?.data?.message || axiosError.message;
-      throw { ...(axiosError.response?.data || {}) };
+      throw new Error(JSON.stringify({ ...(axiosError.response?.data || {}) }));
     }
 
-    throw { message };
+    throw new Error(message);
   }
 };

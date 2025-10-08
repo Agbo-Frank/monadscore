@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { compareString, isEmpty, parseNumber, ZERO_ADDRESS } from "../utils";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { compareString, isEmpty, parseNumber, ZERO_ADDRESS, storage } from "../utils";
 import useFetcher from "./use-fetcher";
 import endpoint from "../Api/endpoint";
 
@@ -7,6 +7,18 @@ export default function useQuote({ address, slippage, sellAmount }) {
   const [sellCoin, setSellCoin] = useState(null);
   const [buyCoin, setBuyCoin] = useState(null);
   const [debouncedSellAmount, setDebouncedSellAmount] = useState(0);
+  const lastQuoteParamsRef = useRef(null);
+
+  // Wrapper functions that persist coin changes
+  const setSellCoinWithPersistence = useCallback((coin) => {
+    setSellCoin(coin);
+    storage.setSellCoin(coin);
+  }, []);
+
+  const setBuyCoinWithPersistence = useCallback((coin) => {
+    setBuyCoin(coin);
+    storage.setBuyCoin(coin);
+  }, []);
 
   const { trigger: getQuote, data: quoteData, isMutating: loadingQuote } = useFetcher(endpoint.quote)
 
@@ -27,24 +39,14 @@ export default function useQuote({ address, slippage, sellAmount }) {
       ...quoteData?.data,
       rate: output_amount ? Number(output_amount) / Number(input_amount) : null
     }
-  }, [quoteData?.data, sellCoin?.address, buyCoin?.address, slippage, address])
+  }, [quoteData?.data])
 
   const canSwap = useMemo(() => {
     const enteredAmount = parseFloat(sellAmount);
-    const returnedAmount = parseFloat(input_amount);
 
-    console.log("from", compareString(quoteData?.data?.from, sellCoin?.address))
-    console.log("to", compareString(quoteData?.data?.to, buyCoin?.address))
-    console.log("amount", enteredAmount === returnedAmount)
-    console.log("slippage", slippage === returnedSlippage)
-
-    const amountsMatch = Math.abs(enteredAmount - returnedAmount) < 0.000001;
-    // Check if we have a valid quote that matches current coin selection
     const hasValidQuote = quoteData?.data &&
       compareString(quoteData?.data?.from, sellCoin?.address) &&
-      compareString(quoteData?.data?.to, buyCoin?.address) &&
-      amountsMatch &&
-      slippage === returnedSlippage
+      compareString(quoteData?.data?.to, buyCoin?.address)
 
     return (
       address &&
@@ -59,6 +61,7 @@ export default function useQuote({ address, slippage, sellAmount }) {
     sellCoin?.address,
     buyCoin?.address,
     sellAmount,
+    input_amount,
     quoteId,
     quoteData?.data,
     slippage,
@@ -70,32 +73,93 @@ export default function useQuote({ address, slippage, sellAmount }) {
   const loadCoin = useCallback((tokens) => {
     if (isEmpty(tokens)) return;
 
-    if (isEmpty(buyCoin?.address)) {
-      const defaultBuyCoin = tokens.find(t => compareString(t.code, "usdc"))
-      setBuyCoin(defaultBuyCoin)
+    // Helper function to find token by address
+    const findTokenByAddress = (address) => {
+      if (!address) return null;
+      return tokens.find(token => compareString(token.address, address));
+    };
+
+    // Try to restore from storage first
+    const savedSellCoin = storage.getSellCoin();
+    const savedBuyCoin = storage.getBuyCoin();
+
+    // Restore sell coin
+    if (isEmpty(sellCoin?.address)) {
+      let coinToSet = null;
+      
+      // Try to restore from storage
+      if (savedSellCoin?.address) {
+        coinToSet = findTokenByAddress(savedSellCoin.address);
+      }
+      
+      // Fallback to default if not found
+      if (!coinToSet) {
+        coinToSet = tokens.find(t => compareString(t.code, "mon"));
+      }
+      
+      if (coinToSet) {
+        setSellCoin(coinToSet);
+        // Update storage with the fresh token data
+        storage.setSellCoin(coinToSet);
+      }
     }
 
-    if (isEmpty(sellCoin?.address)) {
-      const defaultSellCoin = tokens.find(t => compareString(t.code, "mon"))
-      setSellCoin(defaultSellCoin)
+    // Restore buy coin
+    if (isEmpty(buyCoin?.address)) {
+      let coinToSet = null;
+      
+      // Try to restore from storage
+      if (savedBuyCoin?.address) {
+        coinToSet = findTokenByAddress(savedBuyCoin.address);
+      }
+      
+      // Fallback to default if not found
+      if (!coinToSet) {
+        coinToSet = tokens.find(t => compareString(t.code, "usdc"));
+      }
+      
+      if (coinToSet) {
+        setBuyCoin(coinToSet);
+        // Update storage with the fresh token data
+        storage.setBuyCoin(coinToSet);
+      }
     }
   }, [buyCoin?.address, sellCoin?.address])
 
-  const handleGetQuote = useCallback(async () => {
+  const handleGetQuote = useCallback(async (refetch = false) => {
     const amount = parseNumber(debouncedSellAmount);
     if (
       isEmpty(sellCoin?.address) ||
-      isEmpty(buyCoin?.address)
+      isEmpty(buyCoin?.address) ||
+      amount <= 0
     ) return;
 
-    await getQuote({
-      amount: amount ? amount : 1,
+    const currentParams = {
+      amount,
       from: sellCoin.address,
+      to: buyCoin.address,
       sender: address || ZERO_ADDRESS,
-      slippage,
-      to: buyCoin.address
-    });
-  }, [debouncedSellAmount, slippage, sellCoin?.address, buyCoin?.address, getQuote]);
+      slippage
+    };
+
+    // Check if parameters have changed to avoid duplicate requests
+    if (!refetch) {
+      const lastParams = lastQuoteParamsRef.current;
+
+      if (lastParams && 
+        lastParams.amount === currentParams.amount &&
+        lastParams.from === currentParams.from &&
+        lastParams.to === currentParams.to &&
+        lastParams.sender === currentParams.sender &&
+        lastParams.slippage === currentParams.slippage) {
+        return; // Skip if parameters haven't changed
+      }
+    }
+
+    lastQuoteParamsRef.current = currentParams;
+
+    await getQuote(currentParams);
+  }, [debouncedSellAmount, slippage, sellCoin?.address, buyCoin?.address, address, getQuote]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -106,22 +170,29 @@ export default function useQuote({ address, slippage, sellAmount }) {
   }, [sellAmount]);
 
   useEffect(() => {
-    if (sellCoin && buyCoin) {
+    if (sellCoin && buyCoin && parseNumber(debouncedSellAmount) > 0) {
       const timeoutId = setTimeout(() => {
         handleGetQuote();
       }, 1000); // 1 second delay
 
       return () => clearTimeout(timeoutId);
     }
-  }, [debouncedSellAmount, slippage, buyCoin?.address, sellCoin?.address]);
+  }, [sellCoin, buyCoin, debouncedSellAmount, handleGetQuote]);
+
+  // Separate effect for slippage changes - refetch immediately when slippage changes
+  useEffect(() => {
+    if (sellCoin && buyCoin && parseNumber(debouncedSellAmount) > 0) {
+      handleGetQuote();
+    }
+  }, [slippage]);
 
   const quoteResult = { rate, platform, fee, price_impact, quoteId, input_amount }
 
   return {
     sellCoin,
-    setSellCoin,
+    setSellCoin: setSellCoinWithPersistence,
     buyCoin,
-    setBuyCoin,
+    setBuyCoin: setBuyCoinWithPersistence,
     handleGetQuote,
     loadCoin,
     canSwap,

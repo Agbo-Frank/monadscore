@@ -40,12 +40,39 @@ export const isEmpty = (mixedVar) => {
 
 export const clearCache = () => mutate(() => true, undefined, { revalidate: false });
 
-export const formatCurrency = (value, prefix = "$") => {
-  value = parseNumber(value)
-  return `${prefix}${value
-    .toFixed(2)
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-}
+export const formatCurrency = (amount, prefix = "$", decimals = 5) => {
+  if(Number(amount) <= 0) {
+    return `${prefix || ''}${amount}`;
+  };
+
+  const numericString = String(amount).replace(/,/g, '').replace(/[^\d.]/g, '');
+
+  if (String(numericString).includes('.')) {
+    let [integerPart, decimalPart] = numericString.split('.');
+    const formattedInteger = integerPart ? integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+
+    if (decimalPart) {
+      decimalPart = decimalPart.slice(0, decimals || 6);
+    }
+
+    return `${prefix || ''}${formattedInteger || ''}.${decimalPart || ''}`;
+  }
+
+  // Split integer and decimal parts if a decimal exists
+  let [integerPart, decimalPart] = numericString.split('.');
+
+  // Limit the decimal part to 5 places, if it exists
+  if (decimalPart) {
+    decimalPart = decimalPart.slice(0, decimals || 6);
+  }
+
+  // Format the integer part with commas
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  // Reassemble the number with the truncated decimal part, if it exists
+  const result = decimalPart ? `${formattedInteger}.${decimalPart}` : formattedInteger;
+  return prefix && !isEmpty(result) ? `${prefix}${result}` : result;
+};
 
 export const truncateAddress = (address, startChars = 4, endChars = 4) => {
   try {
@@ -77,23 +104,47 @@ export const formatTokenBalance = (balance) => {
   const numBalance = parseFloat(balance);
   if (isNaN(numBalance)) return "0";
 
-  // Handle very small numbers that would display in scientific notation
+  // Handle zero
   if (numBalance === 0) return "0";
 
   // For very small numbers (less than 0.000001), show as "< 0.000001"
   if (numBalance > 0 && numBalance < 0.000001) {
-    return "< 0.000001";
+    return "0.00";
   }
 
   // For negative very small numbers
   if (numBalance < 0 && numBalance > -0.000001) {
-    return "> -0.000001";
+    return "0.00";
   }
 
-  // For numbers that can be displayed normally, format with up to 6 decimal places
-  // Remove trailing zeros
-  const formatted = numBalance.toFixed(6);
-  return parseFloat(formatted).toString();
+  // For numbers that can be displayed normally, format with up to 8 decimal places
+  // Use toFixed to ensure we never get scientific notation, then remove trailing zeros
+  let decimalPlaces = 18;
+  
+  // For larger numbers, reduce decimal places
+  if (Math.abs(numBalance) >= 1) {
+    decimalPlaces = 6;
+  }
+  if (Math.abs(numBalance) >= 1000) {
+    decimalPlaces = 4;
+  }
+  if (Math.abs(numBalance) >= 1000000) {
+    decimalPlaces = 2;
+  }
+  
+  const formatted = numBalance.toFixed(decimalPlaces);
+  // Convert back to number and then to string to remove trailing zeros
+  // But ensure we never get scientific notation by using toFixed again if needed
+  const result = parseFloat(formatted);
+  
+  // Check if the result would be in scientific notation when converted to string
+  const resultStr = result.toString();
+  if (resultStr.includes('e') || resultStr.includes('E')) {
+    // If it would be scientific notation, use toFixed with appropriate decimal places
+    return numBalance.toFixed(Math.max(18, decimalPlaces));
+  }
+  
+  return resultStr;
 };
 
 
@@ -170,3 +221,27 @@ export const isNativeCoin = (address) => {
 export const isEthereumAddress = (str) => {
   return /^0x[a-fA-F0-9]{40}$/.test(str);
 }
+
+// Compare two decimal amounts with proper precision handling
+export const compareAmountsWithPrecision = (amount1, amount2, decimals = 18) => {
+  const decimalPlaces = Math.min(decimals, 18);
+  // Use a more generous epsilon to handle formatting precision issues
+  const epsilon = Math.pow(10, -(Math.max(6, decimalPlaces - 4)));
+  
+  const normalizedAmount1 = parseFloat(parseFloat(amount1).toFixed(decimalPlaces));
+  const normalizedAmount2 = parseFloat(parseFloat(amount2).toFixed(decimalPlaces));
+  
+  // Returns: -1 if amount1 < amount2, 0 if equal (within precision), 1 if amount1 > amount2
+  const diff = normalizedAmount1 - normalizedAmount2;
+  
+  if (Math.abs(diff) <= epsilon) return 0; // Equal within precision
+  return diff > 0 ? 1 : -1;
+}
+
+// Check if amount1 is greater than amount2 with precision handling
+export const isAmountGreater = (amount1, amount2, decimals = 18) => {
+  return compareAmountsWithPrecision(amount1, amount2, decimals) > 0;
+}
+
+// Export storage utilities
+export * from './storage';

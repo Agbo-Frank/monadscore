@@ -1,9 +1,10 @@
-import { useMemo, memo } from "react";
+import { useMemo, memo, useImperativeHandle, forwardRef } from "react";
 import { FaWallet } from "react-icons/fa";
-import { cleanNumber, compareString, formatCurrency, formatTokenBalance, isEmpty } from "../utils";
+import { cleanNumber, compareString, formatCurrency, isEmpty } from "../utils";
 import numeral from "numeral";
+import useTokenBalance from "../hooks/use-token-balance";
 
-const TradeSection = memo(function TradeSection({
+const TradeSection = memo(forwardRef(function TradeSection({
   type = "buy", // "buy" or "sell"
   coin,
   amount,
@@ -11,16 +12,53 @@ const TradeSection = memo(function TradeSection({
   onSelect,
   balance = [],
   children = null
-}) {
-  // Get the specific token balance for this coin
+}, ref) {
+  // Get the specific token balance for this coin using RPC
+  const { 
+    balance: rpcBalance, 
+    decimals: tokenDecimals,
+    refetch: refetchBalance
+  } = useTokenBalance(coin?.address, {
+    enabled: !!coin?.address,
+    refetchInterval: 30000
+  });
+
+  // Expose refresh function to parent component
+  useImperativeHandle(ref, () => ({
+    refreshBalance: async () => {
+      if (refetchBalance) {
+        return await refetchBalance();
+      }
+    }
+  }), [refetchBalance]);
+
+  // Get the specific token balance for this coin (prioritize RPC over API)
   const tokenBalance = useMemo(() => {
-    const defaultBalance = { balance: 0, balance_usd: 0 }
+    const defaultBalance = { balance: 0, balance_usd: 0, decimals: 18 }
     if (!coin?.address) {
       return defaultBalance;
     }
 
-    return balance.find(b => compareString(b.address, coin?.address));
-  }, [coin?.address, balance]);
+    // Always prioritize RPC balance when available
+    if (rpcBalance !== undefined && rpcBalance !== null) {
+      return {
+        balance: rpcBalance,
+        balance_usd: rpcBalance * (coin?.price || 0),
+        decimals: tokenDecimals || coin?.decimals || 18
+      };
+    }
+
+    // Fallback to API balance only if RPC is not available
+    const apiBalance = balance.find(b => compareString(b.address, coin?.address));
+    if (apiBalance) {
+      return {
+        ...apiBalance,
+        decimals: coin?.decimals || 18
+      };
+    }
+
+    return defaultBalance;
+  }, [coin?.address, coin?.decimals, coin?.price, balance, rpcBalance, tokenDecimals]);
 
   let approxValue = useMemo(() => {
     if (isEmpty(amount) || isEmpty(coin?.price)) return 0;
@@ -28,6 +66,54 @@ const TradeSection = memo(function TradeSection({
   }, [amount, coin?.price]);
 
   const isSell = type === "sell";
+
+  // Format amount based on token decimals
+  const formatAmountByDecimals = (value, decimals) => {
+    if (!value || value === 0) return "0";
+    
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue === 0) return "0";
+    
+    // For very small numbers (less than 0.000001), show as "< 0.000001"
+    if (numValue > 0 && numValue < 0.000001) {
+      return "0.00";
+    }
+    
+    // For negative very small numbers
+    if (numValue < 0 && numValue > -0.000001) {
+      return "0.00";
+    }
+    
+    // For tokens with fewer decimals, show fewer decimal places
+    let decimalPlaces = 6; // default
+    if (decimals && decimals <= 6) {
+      decimalPlaces = Math.max(2, decimals);
+    } else if (decimals && decimals <= 8) {
+      decimalPlaces = 6;
+    } else {
+      decimalPlaces = 8;
+    }
+    
+    // For very small numbers, show more precision
+    if (numValue > 0 && numValue < 0.000001) {
+      decimalPlaces = Math.max(decimalPlaces, 8);
+    }
+    
+    const formatted = numValue.toFixed(decimalPlaces);
+    const result = parseFloat(formatted);
+    
+    // Check if the result would be in scientific notation when converted to string
+    const resultStr = result.toString();
+    if (resultStr.includes('e') || resultStr.includes('E')) {
+      // If it would be scientific notation, use toFixed with appropriate decimal places
+      return numValue.toFixed(Math.max(8, decimalPlaces));
+    }
+    
+    return resultStr;
+  };
+
+  // Get the effective decimals (use the same source as tokenBalance)
+  const effectiveDecimals = tokenBalance?.decimals || tokenDecimals || coin?.decimals || 18;
 
   const handleAmountChange = (value) => {
     const formattedValue = cleanNumber(value);
@@ -68,10 +154,16 @@ const TradeSection = memo(function TradeSection({
     e.preventDefault();
   };
 
-  const handlePercentageClick = (percentage = 100) => {
+  const handlePercentageClick = (percentage) => {
     const balance = parseFloat(tokenBalance?.balance);
-    const calculatedAmount = balance * (percentage / 100);
-    const formattedAmount = cleanNumber(calculatedAmount.toString());
+    let calculatedAmount = balance * (percentage / 100);
+
+    // If balance is a decimals value use 99.99999, else use 100
+    if (String(balance).includes('.')) {
+      calculatedAmount = balance * (99.99999 / 100);
+    }
+
+    const formattedAmount = formatAmountByDecimals(calculatedAmount, effectiveDecimals);
     onAmountChange(formattedAmount);
   };
 
@@ -90,7 +182,7 @@ const TradeSection = memo(function TradeSection({
               </button>
               <button
                 className="py-2 px-3 rounded bg-[#E5E5E5] text-[#181818] font-medium hover:bg-[#D9D9D9] transition"
-                onClick={() => handlePercentageClick()}
+                onClick={() => handlePercentageClick(100)}
               >
                 Max
               </button>
@@ -100,7 +192,7 @@ const TradeSection = memo(function TradeSection({
           <div className="flex gap-2">
             <FaWallet />
             <span>
-              {formatTokenBalance(tokenBalance?.balance)} {coin?.code || ""}
+              {formatAmountByDecimals(tokenBalance?.balance, effectiveDecimals)} {coin?.code || ""}
             </span>
           </div>
         </div>
@@ -136,7 +228,7 @@ const TradeSection = memo(function TradeSection({
             inputMode="decimal"
             className="w-full bg-transparent text-right font-medium outline-none placeholder:text-[#939393] text-[1.5rem]"
             placeholder="0.00"
-            value={amount}
+            value={amount || ""}
             disabled={!isSell}
             onChange={handleInputChange}
             onKeyDown={handleKeyPress}
@@ -157,6 +249,6 @@ const TradeSection = memo(function TradeSection({
       {children}
     </div>
   )
-});
+}));
 
 export default TradeSection;
